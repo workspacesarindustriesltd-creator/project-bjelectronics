@@ -90,30 +90,25 @@ by an administrator.
 The API defaults to port `4000`. Local admin routes are `/admin/login` and
 `/admin/dashboard`.
 
-## Administrator credentials
+## Administrator access
 
-The local preview accepts:
-
-| Field | Local value |
-| --- | --- |
-| Email | `admin@bjelectronics.shop` |
-| Password | `admin12345` |
-
-These values are for local evaluation only. Before production, set a unique
-administrator email and strong password in `.env`, then run
-`npm run db:seed-users`:
+No administrator email, password, token, or other secret is stored in this
+repository. Configure the administrator account through private deployment
+environment variables, then run `npm run db:seed-users`:
 
 ```env
-ADMIN_NAME=Store Administrator
-ADMIN_EMAIL=your-admin@bjelectronics.shop
-ADMIN_PHONE=01700000001
-ADMIN_PASSWORD=replace-with-a-long-unique-password
-JWT_SECRET=replace-with-a-long-random-secret
+ADMIN_NAME=
+ADMIN_EMAIL=
+ADMIN_PHONE=
+ADMIN_PASSWORD=
+JWT_SECRET=
 ```
 
-The storefront login rejects administrator accounts. Administrators must use
-the dedicated admin login endpoint, which creates a separate HTTP-only,
-SameSite Strict session with an eight-hour expiry.
+Use a unique administrator email, a strong password, and a long random JWT
+secret. Never commit populated environment files. The storefront login rejects
+administrator accounts; administrators must use the dedicated admin login,
+which creates a separate HTTP-only, SameSite Strict session with an eight-hour
+expiry.
 
 ## Production URLs
 
