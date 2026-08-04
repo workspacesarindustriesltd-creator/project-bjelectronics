@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log*
+dist
+coverage
+.git
+.github
+.env
+.env.*
+!.env.example
+*.sql.gz
+*.tar.gz
+.DS_Store
