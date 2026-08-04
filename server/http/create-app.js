@@ -3,7 +3,9 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { rateLimit as createRateLimit } from "express-rate-limit";
 import { config, isProduction } from "../config.js";
+import { csrfProtection, issueCsrfToken } from "./csrf.js";
 import { errorHandler, notFound } from "./error-handler.js";
 import { createAccountRouter } from "../modules/account/routes.js";
 import { createAdminRouter } from "../modules/admin/routes.js";
@@ -46,12 +48,33 @@ function mountStaticApplications(app, staticRoot) {
   });
 }
 
-export function createApp({ repository, healthcheck = async () => true, staticRoot = null }) {
+export function createApp({
+  repository,
+  healthcheck = async () => true,
+  staticRoot = null,
+  rateLimit = {},
+}) {
   const app = express();
   const allowedOrigins = new Set([config.storeUrl, config.adminUrl]);
+  const requestLimiter = createRateLimit({
+    windowMs: rateLimit.windowMs ?? 15 * 60 * 1000,
+    limit: rateLimit.limit ?? 600,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please try again later." },
+  });
+  const authenticationLimiter = createRateLimit({
+    windowMs: rateLimit.windowMs ?? 15 * 60 * 1000,
+    limit: rateLimit.authLimit ?? 20,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many authentication attempts. Please try again later." },
+  });
 
   app.disable("x-powered-by");
+  if (isProduction) app.set("trust proxy", 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(requestLimiter);
   app.use(cors({
     credentials: true,
     origin(origin, callback) {
@@ -62,13 +85,15 @@ export function createApp({ repository, healthcheck = async () => true, staticRo
   app.use(express.json({ limit: "250kb" }));
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
+  app.get("/api/csrf-token", issueCsrfToken);
+  app.use(csrfProtection);
 
   app.get("/api/health", async (_req, res) => {
     await healthcheck();
     return res.json({ status: "ok", service: "bj-electronics-api", checkout: "offline" });
   });
-  app.use("/api/auth", createCustomerAuthRouter(repository));
-  app.use("/api/admin/auth", createAdminAuthRouter(repository));
+  app.use("/api/auth", authenticationLimiter, createCustomerAuthRouter(repository));
+  app.use("/api/admin/auth", authenticationLimiter, createAdminAuthRouter(repository));
   app.use("/api/products", createCatalogRouter(repository));
   app.use("/api/orders", createOrdersRouter(repository));
   app.use("/api/account", createAccountRouter(repository));
