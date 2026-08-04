@@ -237,9 +237,10 @@ export function createApp({ repository, paymentGateway, healthcheck = async () =
     if (!expected) return res.status(404).json({ error: "Payment order not found." });
     const validation = await paymentGateway.validate(validationId);
     const validStatus = ["VALID", "VALIDATED"].includes(validation.status);
+    const transactionMatches = validation.tran_id === transactionId;
     const amountMatches = Math.abs(Number(validation.amount) - Number(expected.total_amount)) < 0.01;
     const currencyMatches = validation.currency === expected.currency;
-    if (!validStatus || !amountMatches || !currencyMatches) {
+    if (!validStatus || !transactionMatches || !amountMatches || !currencyMatches) {
       await repository.markPaymentFailed(transactionId, "invalid");
       if (redirect) return res.redirect(`${config.storeUrl}/?payment=failed`);
       return res.status(422).json({ error: "Payment validation failed." });

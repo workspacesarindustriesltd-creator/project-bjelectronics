@@ -1,31 +1,62 @@
 import crypto from "node:crypto";
-import SSLCommerzPayment from "sslcommerz-lts";
 import { config } from "./config.js";
 
+const endpoints = (isLive) => {
+  const host = isLive ? "https://securepay.sslcommerz.com" : "https://sandbox.sslcommerz.com";
+  return {
+    initiate: `${host}/gwprocess/v4/api.php`,
+    validate: `${host}/validator/api/validationserverAPI.php`,
+  };
+};
+
+const toFormBody = (values) => {
+  const body = new URLSearchParams();
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) body.set(key, String(value));
+  }
+  return body;
+};
+
+async function readJson(response, operation) {
+  const text = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error(`SSLCOMMERZ returned an invalid ${operation} response.`);
+  }
+  if (!response.ok) {
+    throw new Error(payload?.failedreason || payload?.error || `SSLCOMMERZ ${operation} failed with HTTP ${response.status}.`);
+  }
+  return payload;
+}
+
 export class SSLCommerzGateway {
-  constructor(settings = config.sslcommerz) {
+  constructor(settings = config.sslcommerz, fetchImplementation = globalThis.fetch) {
     this.settings = settings;
+    this.fetch = fetchImplementation;
   }
 
   get configured() {
     return Boolean(this.settings.storeId && this.settings.storePassword);
   }
 
-  client() {
+  assertConfigured() {
     if (!this.configured) {
       throw new Error("SSLCOMMERZ credentials are not configured. Add them to .env.");
     }
-    return new SSLCommerzPayment(
-      this.settings.storeId,
-      this.settings.storePassword,
-      this.settings.isLive,
-    );
+    if (typeof this.fetch !== "function") {
+      throw new Error("This Node.js runtime does not provide the Fetch API required for SSLCOMMERZ.");
+    }
   }
 
   async initiate(order) {
+    this.assertConfigured();
     const transactionId = `BJ${Date.now().toString(36)}${crypto.randomBytes(3).toString("hex")}`.slice(0, 30);
     const callbackBase = `${config.publicApiUrl}/api/payments/sslcommerz`;
     const data = {
+      store_id: this.settings.storeId,
+      store_passwd: this.settings.storePassword,
       total_amount: order.total,
       currency: order.currency,
       tran_id: transactionId,
@@ -55,17 +86,42 @@ export class SSLCommerzGateway {
       value_a: order.id,
       value_b: order.orderNumber,
     };
-    const response = await this.client().init(data);
-    if (!response?.GatewayPageURL) throw new Error(response?.failedreason || "SSLCOMMERZ did not return a payment URL.");
+
+    const response = await this.fetch(endpoints(this.settings.isLive).initiate, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body: toFormBody(data),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const payload = await readJson(response, "session initiation");
+    if (!payload?.GatewayPageURL) {
+      throw new Error(payload?.failedreason || "SSLCOMMERZ did not return a payment URL.");
+    }
     return {
       transactionId,
-      sessionKey: response.sessionkey,
-      gatewayUrl: response.GatewayPageURL,
-      raw: response,
+      sessionKey: payload.sessionkey,
+      gatewayUrl: payload.GatewayPageURL,
+      raw: payload,
     };
   }
 
   async validate(validationId) {
-    return this.client().validate({ val_id: validationId });
+    this.assertConfigured();
+    const url = new URL(endpoints(this.settings.isLive).validate);
+    url.search = toFormBody({
+      val_id: validationId,
+      store_id: this.settings.storeId,
+      store_passwd: this.settings.storePassword,
+      v: 1,
+      format: "json",
+    }).toString();
+    const response = await this.fetch(url, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    return readJson(response, "payment validation");
   }
 }
