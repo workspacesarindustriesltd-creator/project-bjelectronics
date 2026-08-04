@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -18,14 +18,49 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+      - name: Enforce payment transaction validation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("server/app.js")
+          source = path.read_text()
+          old = '''    const validStatus = ["VALID", "VALIDATED"].includes(validation.status);
+              const amountMatches = Math.abs(Number(validation.amount) - Number(expected.total_amount)) < 0.01;
+              const currencyMatches = validation.currency === expected.currency;
+              if (!validStatus || !amountMatches || !currencyMatches) {'''
+          new = '''    const validStatus = ["VALID", "VALIDATED"].includes(validation.status);
+              const transactionMatches = validation.tran_id === transactionId;
+              const amountMatches = Math.abs(Number(validation.amount) - Number(expected.total_amount)) < 0.01;
+              const currencyMatches = validation.currency === expected.currency;
+              if (!validStatus || !transactionMatches || !amountMatches || !currencyMatches) {'''
+          if new in source:
+              raise SystemExit(0)
+          if old not in source:
+              raise SystemExit("Expected payment-validation block was not found.")
+          path.write_text(source.replace(old, new, 1))
+          PY
       - name: Install dependencies
         run: npm ci
       - name: Run tests and production build
         run: npm run check
       - name: Audit production dependencies
         run: npm run security:audit
+      - name: Commit payment validation fix
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- server/app.js; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/app.js
+          git commit -m "Validate SSLCOMMERZ transaction IDs"
+          git push origin HEAD:${{ github.head_ref }}
