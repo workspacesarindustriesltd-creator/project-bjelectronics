@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -42,6 +43,11 @@ contract = re.sub(
     count=1,
 )
 contract_path.write_text(contract, encoding="utf-8")
+
+package_path = ROOT / "package.json"
+package = json.loads(package_path.read_text(encoding="utf-8"))
+package["scripts"]["check"] = "npm run build && npm test"
+package_path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
 
 shutil.rmtree(ROOT / "dist", ignore_errors=True)
 IMPLEMENTATION.unlink(missing_ok=True)
