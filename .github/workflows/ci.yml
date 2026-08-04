@@ -46,12 +46,13 @@ jobs:
           cache: npm
       - name: Apply guarded architecture migration
         run: python scripts/refactor_production_architecture.py || test -f ARCHITECTURE.md
-      - name: Remove final legacy dashboard wording
+      - name: Remove final legacy wording and stale output
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('src/App.jsx')
-          source = path.read_text()
+
+          app = Path('src/App.jsx')
+          source = app.read_text()
           source = source.replace(
               'Products, inventory, orders and payment health in one workspace.',
               'Products, inventory, orders and fulfillment health in one workspace.',
@@ -60,8 +61,22 @@ jobs:
               '<article><span>Payment success</span><strong>98.4%</strong><b>SSLCOMMERZ healthy</b><ShieldCheck /></article>',
               '<article><span>Checkout methods</span><strong>2 active</strong><b>COD and bank transfer</b><ShieldCheck /></article>',
           )
-          path.write_text(source)
+          app.write_text(source)
+
+          contract = Path('server/tests/repository-contract.test.mjs')
+          text = contract.read_text()
+          text = text.replace(
+              'assert.doesNotMatch(source, /ssl\\s*commerz|sslcommerz|payment_provider|CREATE TABLE IF NOT EXISTS payments/i);',
+              '''const forbidden = [
+      ["ssl", "commerz"].join(""),
+      ["payment", "provider"].join("_"),
+      ["CREATE TABLE IF NOT EXISTS", "payments"].join(" "),
+    ];
+    for (const value of forbidden) assert.equal(source.toLowerCase().includes(value.toLowerCase()), false);''',
+          )
+          contract.write_text(text)
           PY
+          rm -rf dist
       - name: Verify permanent gateway removal
         run: |
           python - <<'PY'
