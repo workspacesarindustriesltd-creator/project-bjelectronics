@@ -57,13 +57,39 @@ const demoCoupons = [
 const money = (value) => new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(value);
 const isLocalPreview = ["localhost", "127.0.0.1", "terminal.local"].includes(window.location.hostname);
 
-async function adminRequest(path, options = {}) {
+let csrfTokenPromise;
+
+function getCsrfToken() {
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = fetch("/api/csrf-token", { credentials: "include" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok || !body.csrfToken) throw new Error(body?.error || "Could not initialize request security.");
+        return body.csrfToken;
+      })
+      .catch((error) => {
+        csrfTokenPromise = undefined;
+        throw error;
+      });
+  }
+  return csrfTokenPromise;
+}
+
+async function adminRequest(path, options = {}, retryCsrf = true) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-CSRF-Token"] = await getCsrfToken();
+
   const response = await fetch(path, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers,
   });
   const body = response.status === 204 ? null : await response.json();
+  if (response.status === 403 && body?.code === "CSRF_TOKEN_INVALID" && retryCsrf) {
+    csrfTokenPromise = undefined;
+    return adminRequest(path, options, false);
+  }
   if (!response.ok) throw new Error(body?.error || "The administrator request could not be completed.");
   return body;
 }

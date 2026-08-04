@@ -53,17 +53,37 @@ function fixture() {
     createProduct: async (data) => ({ id: 2, ...data }),
     updateProduct: async () => null,
   };
-  return { app: createApp({ repository }), users, orders };
+  return { app: createApp({ repository }), repository, users, orders };
 }
 
 async function customerSession(app) {
-  const response = await request(app).post("/api/auth/login").send({ email: "demo@bjelectronics.shop", password: "demo12345" }).expect(200);
+  const response = await request(app)
+    .post("/api/auth/login")
+    .set(await csrfHeaders(app))
+    .send({ email: "demo@bjelectronics.shop", password: "demo12345" })
+    .expect(200);
   return response.headers["set-cookie"];
 }
 
 async function adminSession(app) {
-  const response = await request(app).post("/api/admin/auth/login").send({ email: "admin@bjelectronics.shop", password: "demo12345" }).expect(200);
+  const response = await request(app)
+    .post("/api/admin/auth/login")
+    .set(await csrfHeaders(app))
+    .send({ email: "admin@bjelectronics.shop", password: "demo12345" })
+    .expect(200);
   return response.headers["set-cookie"];
+}
+
+function cookieHeader(cookies = []) {
+  return cookies.flat().filter(Boolean).map((cookie) => cookie.split(";")[0]).join("; ");
+}
+
+async function csrfHeaders(app, cookies = []) {
+  const response = await request(app).get("/api/csrf-token").expect(200);
+  return {
+    Cookie: cookieHeader([...cookies, response.headers["set-cookie"]]),
+    "X-CSRF-Token": response.body.csrfToken,
+  };
 }
 
 test("reports healthy gateway-free API status", async () => {
@@ -74,7 +94,11 @@ test("reports healthy gateway-free API status", async () => {
 
 test("registers and authenticates customers with an HTTP-only cookie", async () => {
   const { app, users } = fixture();
-  const response = await request(app).post("/api/auth/register").send({ name: "New Customer", email: "new@example.com", phone: "01711111111", password: "strongpass1" }).expect(201);
+  const response = await request(app)
+    .post("/api/auth/register")
+    .set(await csrfHeaders(app))
+    .send({ name: "New Customer", email: "new@example.com", phone: "01711111111", password: "strongpass1" })
+    .expect(201);
   assert.match(response.headers["set-cookie"][0], /bj_session=/);
   assert.equal(users.length, 3);
 });
@@ -90,7 +114,7 @@ test("keeps customer and administrator sessions isolated", async () => {
 test("places cash-on-delivery orders without an external payment session", async () => {
   const { app, orders } = fixture();
   const cookie = await customerSession(app);
-  const response = await request(app).post("/api/orders").set("Cookie", cookie).send({
+  const response = await request(app).post("/api/orders").set(await csrfHeaders(app, cookie)).send({
     items: [{ productId: 1, quantity: 1 }],
     currency: "BDT",
     paymentMethod: "cash_on_delivery",
@@ -104,7 +128,7 @@ test("places cash-on-delivery orders without an external payment session", async
 test("supports bank-transfer order placement with awaiting-payment state", async () => {
   const { app } = fixture();
   const cookie = await customerSession(app);
-  const response = await request(app).post("/api/orders").set("Cookie", cookie).send({
+  const response = await request(app).post("/api/orders").set(await csrfHeaders(app, cookie)).send({
     items: [{ productId: 1, quantity: 1 }], paymentMethod: "bank_transfer",
     customer: { name: "BJ Customer", email: "demo@bjelectronics.shop", phone: "01700000000", address: "House 18, Road 7", city: "Dhaka", postcode: "1209" },
   }).expect(201);
@@ -114,11 +138,11 @@ test("supports bank-transfer order placement with awaiting-payment state", async
 test("serves catalog, account, review, coupon, and administrator workflows", async () => {
   const { app } = fixture();
   await request(app).get("/api/products").expect(200);
-  await request(app).post("/api/coupons/validate").send({ code: "welcome20", subtotal: 200 }).expect(200);
+  await request(app).post("/api/coupons/validate").set(await csrfHeaders(app)).send({ code: "welcome20", subtotal: 200 }).expect(200);
   const cookie = await customerSession(app);
-  await request(app).post("/api/account/addresses").set("Cookie", cookie).send({ label: "Home", recipientName: "BJ Customer", phone: "01700000000", addressLine: "House 18, Road 7", city: "Dhaka", postcode: "1209", isDefault: true }).expect(201);
-  await request(app).post("/api/account/wishlist/1").set("Cookie", cookie).expect(201);
-  await request(app).post("/api/products/1/reviews").set("Cookie", cookie).send({ rating: 5, title: "Excellent purchase", body: "Fast delivery and excellent product quality." }).expect(201);
+  await request(app).post("/api/account/addresses").set(await csrfHeaders(app, cookie)).send({ label: "Home", recipientName: "BJ Customer", phone: "01700000000", addressLine: "House 18, Road 7", city: "Dhaka", postcode: "1209", isDefault: true }).expect(201);
+  await request(app).post("/api/account/wishlist/1").set(await csrfHeaders(app, cookie)).expect(201);
+  await request(app).post("/api/products/1/reviews").set(await csrfHeaders(app, cookie)).send({ rating: 5, title: "Excellent purchase", body: "Fast delivery and excellent product quality." }).expect(201);
   const adminCookie = await adminSession(app);
   await request(app).get("/api/admin/customers").set("Cookie", adminCookie).expect(200);
   await request(app).get("/api/admin/coupons").set("Cookie", adminCookie).expect(200);
@@ -126,6 +150,60 @@ test("serves catalog, account, review, coupon, and administrator workflows", asy
 
 test("returns structured validation and not-found responses", async () => {
   const { app } = fixture();
-  await request(app).post("/api/orders").send({}).expect(401);
+  await request(app).post("/api/orders").set(await csrfHeaders(app)).send({}).expect(401);
   await request(app).get("/api/does-not-exist").expect(404);
+});
+
+test("rejects unsafe requests that do not include a matching CSRF token", async () => {
+  const { app } = fixture();
+
+  const tokenResponse = await request(app).get("/api/csrf-token").expect(200);
+  assert.match(tokenResponse.headers["set-cookie"][0], /bj_csrf=/);
+  assert.match(tokenResponse.headers["set-cookie"][0], /HttpOnly/);
+  assert.match(tokenResponse.headers["set-cookie"][0], /SameSite=Strict/);
+  assert.equal(tokenResponse.headers["cache-control"], "no-store");
+
+  const response = await request(app)
+    .post("/api/coupons/validate")
+    .send({ code: "WELCOME20", subtotal: 200 })
+    .expect(403);
+
+  assert.equal(response.body.code, "CSRF_TOKEN_INVALID");
+
+  await request(app)
+    .post("/api/coupons/validate")
+    .set("Cookie", cookieHeader(tokenResponse.headers["set-cookie"]))
+    .set("X-CSRF-Token", `${tokenResponse.body.csrfToken}forged`)
+    .send({ code: "WELCOME20", subtotal: 200 })
+    .expect(403);
+});
+
+test("rate limits repeated requests to database-backed routes", async () => {
+  const { repository } = fixture();
+  const app = createApp({
+    repository,
+    rateLimit: { windowMs: 60_000, limit: 2, authLimit: 2 },
+  });
+
+  await request(app).get("/api/products").expect(200);
+  await request(app).get("/api/products").expect(200);
+  const response = await request(app).get("/api/products").expect(429);
+
+  assert.equal(response.body.error, "Too many requests. Please try again later.");
+});
+
+test("applies a stricter limit to repeated authentication attempts", async () => {
+  const { repository } = fixture();
+  const app = createApp({
+    repository,
+    rateLimit: { windowMs: 60_000, limit: 20, authLimit: 2 },
+  });
+  const headers = await csrfHeaders(app);
+  const credentials = { email: "demo@bjelectronics.shop", password: "incorrect-password" };
+
+  await request(app).post("/api/auth/login").set(headers).send(credentials).expect(401);
+  await request(app).post("/api/auth/login").set(headers).send(credentials).expect(401);
+  const response = await request(app).post("/api/auth/login").set(headers).send(credentials).expect(429);
+
+  assert.equal(response.body.error, "Too many authentication attempts. Please try again later.");
 });

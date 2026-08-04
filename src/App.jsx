@@ -83,13 +83,39 @@ const demoCustomers = [
   { id: "c3", name: "Tanvir Ahmed", email: "tanvir@example.com", phone: "01922222222", orderCount: 2, lifetimeValue: 81200, createdAt: "2026-06-19" },
 ];
 
-async function apiRequest(path, options = {}) {
+let csrfTokenPromise;
+
+function getCsrfToken() {
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = fetch("/api/csrf-token", { credentials: "include" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok || !body.csrfToken) throw new Error(body?.error || "Could not initialize request security.");
+        return body.csrfToken;
+      })
+      .catch((error) => {
+        csrfTokenPromise = undefined;
+        throw error;
+      });
+  }
+  return csrfTokenPromise;
+}
+
+async function apiRequest(path, options = {}, retryCsrf = true) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-CSRF-Token"] = await getCsrfToken();
+
   const response = await fetch(path, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers,
   });
   const body = response.status === 204 ? null : await response.json();
+  if (response.status === 403 && body?.code === "CSRF_TOKEN_INVALID" && retryCsrf) {
+    csrfTokenPromise = undefined;
+    return apiRequest(path, options, false);
+  }
   if (!response.ok) throw new Error(body?.error || "The request could not be completed.");
   return body;
 }
