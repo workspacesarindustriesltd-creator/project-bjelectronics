@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - audit/security-ci-hardening-2026-08-04
   pull_request:
     branches:
       - main
@@ -32,7 +33,7 @@ jobs:
         run: npm run security:audit
 
   refactor-production:
-    if: github.head_ref == 'refactor/separate-apps-no-payment-gateway-2026-08-04'
+    if: github.ref == 'refs/heads/audit/security-ci-hardening-2026-08-04'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -56,7 +57,7 @@ jobs:
       - name: Audit production dependencies
         run: npm run security:audit
       - name: Remove one-time migration machinery
-        run: rm scripts/refactor_production_architecture.py .github/workflows/refactor-production.yml
+        run: rm scripts/refactor_production_architecture.py .github/workflows/refactor-production.yml .refactor-trigger
       - name: Commit verified refactor
         run: |
           git config user.name "github-actions[bot]"
