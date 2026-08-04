@@ -1,0 +1,43 @@
+name: Production Architecture Refactor
+
+on:
+  push:
+    branches:
+      - refactor/separate-apps-no-payment-gateway-2026-08-04
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout refactor branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/separate-apps-no-payment-gateway-2026-08-04
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply guarded architecture migration
+        run: python scripts/refactor_production_architecture.py
+      - name: Refresh deterministic dependency lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Install dependencies
+        run: npm ci
+      - name: Run complete verification
+        run: npm run check
+      - name: Audit production dependencies
+        run: npm run security:audit
+      - name: Remove one-time migration machinery
+        run: rm scripts/refactor_production_architecture.py .github/workflows/refactor-production.yml
+      - name: Commit verified refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Refactor production architecture and remove online payments"
+          git push origin HEAD:refactor/separate-apps-no-payment-gateway-2026-08-04
