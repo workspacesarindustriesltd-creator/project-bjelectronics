@@ -29,8 +29,17 @@ function runConfig(environment) {
   });
 }
 
-test("rejects incomplete production configuration", () => {
+test("rejects production without a JWT secret", () => {
   const result = runConfig({ NODE_ENV: "production" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /JWT_SECRET is required/);
+});
+
+test("rejects production without deployment URLs", () => {
+  const result = runConfig({
+    NODE_ENV: "production",
+    JWT_SECRET: "a-secure-random-secret-with-32-characters",
+  });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /STORE_URL is required/);
 });
