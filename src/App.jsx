@@ -141,11 +141,30 @@ function Rating({ value, reviews, compact = false }) {
 
 function Header({ page, setPage, search, setSearch, cartCount, favorites, authUser }) {
   const nav = categoryMeta.map((category) => category.name);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = (target) => {
+    setMenuOpen(false);
+    setPage(target);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.body.classList.add("mobile-menu-open");
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.classList.remove("mobile-menu-open");
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
+
   return (
     <>
       <header className="site-header">
         <div className="header-row shell">
-          <button className="mobile-icon" aria-label="Open menu">
+          <button className="mobile-icon" onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen} aria-controls="mobile-menu">
             <List size={24} />
           </button>
           <Logo onClick={() => setPage("home")} />
@@ -190,6 +209,28 @@ function Header({ page, setPage, search, setSearch, cartCount, favorites, authUs
           </div>
         </nav>
       </header>
+      {menuOpen && (
+        <>
+          <button className="mobile-menu-scrim" onClick={() => setMenuOpen(false)} aria-label="Close menu" />
+          <aside className="mobile-menu" id="mobile-menu" aria-label="Store navigation">
+            <div className="mobile-menu-head">
+              <Logo onClick={() => navigate("home")} />
+              <button onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={23} /></button>
+            </div>
+            <nav>
+              <button className={page === "home" ? "active" : ""} onClick={() => navigate("home")}><House /> Home</button>
+              <button className={page === "categories" ? "active" : ""} onClick={() => navigate("categories")}><List /> All categories</button>
+              {nav.map((item) => (
+                <button key={item} className={page === item ? "active" : ""} onClick={() => navigate(item)}>{item}</button>
+              ))}
+            </nav>
+            <div className="mobile-menu-actions">
+              <button onClick={() => navigate("profile")}><User /> {authUser ? authUser.name : "Sign in or register"}</button>
+              <button onClick={() => navigate("cart")}><ShoppingCart /> Cart <span>{cartCount}</span></button>
+            </div>
+          </aside>
+        </>
+      )}
     </>
   );
 }

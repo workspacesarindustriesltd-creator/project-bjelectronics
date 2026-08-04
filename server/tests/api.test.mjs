@@ -92,6 +92,22 @@ test("reports healthy gateway-free API status", async () => {
   assert.equal(response.body.checkout, "offline");
 });
 
+test("allows configured API origins and rejects untrusted browser origins", async () => {
+  const { app } = fixture();
+
+  const allowed = await request(app)
+    .get("/api/products")
+    .set("Origin", "http://localhost:5173")
+    .expect(200);
+
+  assert.equal(allowed.headers["access-control-allow-origin"], "http://localhost:5173");
+
+  await request(app)
+    .get("/api/products")
+    .set("Origin", "https://untrusted.example")
+    .expect(403);
+});
+
 test("registers and authenticates customers with an HTTP-only cookie", async () => {
   const { app, users } = fixture();
   const response = await request(app)

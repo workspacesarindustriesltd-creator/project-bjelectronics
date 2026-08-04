@@ -3,8 +3,8 @@
 
 ## Deployable applications
 
-- `apps/store` — customer storefront on `www.bjelectronics.shop` or port `5173` locally.
-- `apps/admin` — protected administrator portal on `admin.bjelectronics.shop` or port `5174` locally.
+- `apps/store` — customer storefront on `bjelectronics.shop` or port `5173` locally.
+- `apps/admin` — protected administrator portal at `bjelectronics.shop/admin` or port `5174` locally.
 - `server` — Express API on port `4000`, organized by business module.
 - `database` — MySQL schema, numbered migrations, and seed assets.
 

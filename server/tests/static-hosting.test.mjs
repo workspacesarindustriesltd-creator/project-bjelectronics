@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
@@ -14,6 +15,19 @@ test("serves the storefront shell from the managed Node.js process", async () =>
     .expect(200);
 
   assert.match(response.text, /BJ Electronics/i);
+});
+
+test("serves static assets independently of API CORS policy", async () => {
+  const assetName = fs.readdirSync(path.join(staticRoot, "assets"))
+    .find((fileName) => fileName.endsWith(".css"));
+
+  assert.ok(assetName, "expected the production storefront build to include a stylesheet");
+
+  await request(app)
+    .get(`/assets/${assetName}`)
+    .set("Origin", "https://bjelectronics.shop")
+    .expect(200)
+    .expect("Content-Type", /text\/css/);
 });
 
 test("serves the administrator shell for nested admin routes", async () => {

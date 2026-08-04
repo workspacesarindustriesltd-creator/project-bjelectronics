@@ -1,5 +1,6 @@
 .ops-app, .ops-login, .ops-loading { --ops-navy: #0b1f4b; --ops-blue: #153a8a; --ops-red: #e30613; --ops-bg: #f4f6fa; --ops-line: #e3e7ef; --ops-muted: #727a89; --ops-ink: #202631; color: var(--ops-ink); }
 .ops-app button, .ops-login button { font: inherit; }
+.ops-app :is(button, a, input, select):focus-visible, .ops-login :is(button, a, input):focus-visible { outline: 3px solid rgba(21,58,138,.32); outline-offset: 3px; }
 .ops-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 9px; padding: 0 18px; background: linear-gradient(135deg, var(--ops-blue), #184ea8); color: white; font-size: 12px; font-weight: 700; box-shadow: 0 9px 22px rgba(21,58,138,.18); }
 .ops-primary:disabled { opacity: .65; cursor: wait; }
 
@@ -227,7 +228,7 @@
 @media (max-width: 780px) {
   .ops-login { grid-template-columns: 1fr; }
   .ops-login-brand { display: none; }
-  .ops-login-form-wrap { min-height: 100vh; padding: 26px 20px; }
+  .ops-login-form-wrap { min-height: 100vh; min-height: 100dvh; padding: 26px 20px max(26px, env(safe-area-inset-bottom)); }
   .ops-login-mobile-logo { display: block; margin-bottom: 38px; }
   .ops-login-mobile-logo .ops-logo img { width: 145px; }
   .ops-login-mobile-logo .ops-logo > span { border-left-color: #d9deea; color: var(--ops-blue); }
@@ -239,13 +240,13 @@
   .ops-sidebar-head > button { display: grid; place-items: center; }
   .ops-scrim { position: fixed; z-index: 45; inset: 0; display: block; border: 0; background: rgba(5,16,40,.52); }
   .ops-topbar { min-height: 126px; align-items: flex-start; gap: 11px; padding: 14px 14px 0; }
-  .ops-menu { display: grid; flex: 0 0 auto; }
+  .ops-menu { width: 44px; height: 44px; display: grid; flex: 0 0 auto; }
   .ops-topbar > div:first-of-type { min-width: 0; flex: 1; }
   .ops-topbar > div:first-of-type > span { display: none; }
   .ops-topbar h1 { font-size: 19px; }
   .ops-search { position: absolute; left: 14px; right: 14px; top: 72px; width: auto; box-shadow: 0 8px 18px rgba(21,58,138,.08); }
   .ops-top-actions > a, .ops-user-menu { display: none; }
-  .ops-content { padding: 20px 14px 36px; }
+  .ops-content { padding: 20px 14px max(36px, env(safe-area-inset-bottom)); }
   .ops-welcome { align-items: flex-start; }
   .ops-welcome > div > span { display: none; }
   .ops-welcome h2 { font-size: 28px; }
@@ -267,6 +268,8 @@
   .ops-inline-search { order: 3; width: 100%; }
   .ops-filter { order: 3; width: 100%; }
   .ops-security-list { grid-template-columns: 1fr; }
+  .ops-sidebar nav button { min-height: 46px; }
+  .ops-sidebar-head > button, .ops-sidebar-foot > button { width: 44px; height: 44px; }
 }
 
 @media (max-width: 420px) {

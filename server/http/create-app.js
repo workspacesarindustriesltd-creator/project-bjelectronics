@@ -75,7 +75,7 @@ export function createApp({
   if (isProduction) app.set("trust proxy", 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(requestLimiter);
-  app.use(cors({
+  app.use("/api", cors({
     credentials: true,
     origin(origin, callback) {
       if (!origin || allowedOrigins.has(origin)) return callback(null, true);
@@ -100,7 +100,14 @@ export function createApp({
   app.use("/api/coupons", createCouponValidationRouter(repository));
   app.use("/api/admin", createAdminRouter(repository));
 
-  if (staticRoot) mountStaticApplications(app, staticRoot);
+  if (staticRoot) {
+    app.get("/favicon.ico", (_req, res, next) => {
+      res.sendFile("assets/bj-logo.png", { root: staticRoot }, (error) => {
+        if (error) next(error);
+      });
+    });
+    mountStaticApplications(app, staticRoot);
+  }
 
   app.use(notFound);
   app.use(errorHandler);

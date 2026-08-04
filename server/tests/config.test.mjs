@@ -59,15 +59,16 @@ test("rejects weak production JWT secrets", () => {
 test("accepts secure production configuration", () => {
   const result = runConfig({
     NODE_ENV: "production",
-    STORE_URL: "https://www.bjelectronics.shop",
-    ADMIN_URL: "https://admin.bjelectronics.shop",
-    PUBLIC_API_URL: "https://www.bjelectronics.shop",
+    STORE_URL: "https://bjelectronics.shop",
+    ADMIN_URL: "https://bjelectronics.shop/admin",
+    PUBLIC_API_URL: "https://bjelectronics.shop/api",
     JWT_SECRET: "a-secure-random-secret-with-32-characters",
   });
   assert.equal(result.status, 0, result.stderr);
   const config = JSON.parse(result.stdout);
-  assert.equal(config.storeUrl, "https://www.bjelectronics.shop");
-  assert.equal(config.adminUrl, "https://admin.bjelectronics.shop");
+  assert.equal(config.storeUrl, "https://bjelectronics.shop");
+  assert.equal(config.adminUrl, "https://bjelectronics.shop");
+  assert.equal(config.publicApiUrl, "https://bjelectronics.shop/api");
 });
 
 test("normalizes store and administrator URLs to browser origins", () => {

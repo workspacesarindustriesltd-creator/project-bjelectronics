@@ -94,7 +94,7 @@ Hostinger should detect most values automatically. Confirm these values before d
 | Node.js version | `20.x` |
 | Root directory | repository root, blank or `.` |
 | Install command | automatic `npm ci` |
-| Build command | `npm run build` |
+| Build command | `npm run hostinger:build` |
 | Output directory | `dist` |
 | Entry file | `index.js` |
 | Start command | `npm start` |
@@ -115,11 +115,11 @@ Add these values through hPanel and replace every placeholder:
 
 ```env
 NODE_ENV=production
-STORE_URL=https://www.bjelectronics.shop
-ADMIN_URL=https://www.bjelectronics.shop
-PUBLIC_API_URL=https://www.bjelectronics.shop
-VITE_STORE_URL=https://www.bjelectronics.shop
-VITE_ADMIN_URL=https://www.bjelectronics.shop
+STORE_URL=https://bjelectronics.shop
+ADMIN_URL=https://bjelectronics.shop/admin
+PUBLIC_API_URL=https://bjelectronics.shop/api
+VITE_STORE_URL=https://bjelectronics.shop
+VITE_ADMIN_URL=https://bjelectronics.shop/admin
 JWT_SECRET=<random secret with at least 32 characters>
 DB_HOST=localhost
 DB_PORT=3306
@@ -138,9 +138,9 @@ Do not commit production credentials to GitHub.
 
 After deployment, verify:
 
-- `https://www.bjelectronics.shop/api/health`
-- `https://www.bjelectronics.shop/`
-- `https://www.bjelectronics.shop/admin/`
+- `https://bjelectronics.shop/api/health`
+- `https://bjelectronics.shop/`
+- `https://bjelectronics.shop/admin/`
 
 Then test customer authentication, administrator authentication, product loading, cash-on-delivery ordering, bank-transfer ordering, stock deduction, cancellation, and inventory restoration.
 
