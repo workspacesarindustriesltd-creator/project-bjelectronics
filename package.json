@@ -41,5 +41,8 @@
   },
   "devDependencies": {
     "supertest": "^7.2.2"
+  },
+  "overrides": {
+    "postcss": "8.5.23"
   }
 }
