@@ -12,7 +12,10 @@ import { createCatalogRouter, createCouponValidationRouter } from "../modules/ca
 import { createOrdersRouter } from "../modules/orders/routes.js";
 
 function mountStaticApplications(app, staticRoot) {
-  app.get("/admin", (_req, res) => res.redirect(308, "/admin/"));
+  app.get("/admin", (req, res, next) => {
+    if (req.path !== "/admin") return next();
+    return res.redirect(308, "/admin/");
+  });
 
   app.use(express.static(staticRoot, {
     index: false,
