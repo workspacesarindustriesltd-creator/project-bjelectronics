@@ -59,18 +59,12 @@ cpSync(migrationSource, path.join(runtime, "scripts", "migrate.mjs"));
 
 const sourcePackage = JSON.parse(readFileSync(packageJson, "utf8"));
 const runtimePackage = {
-  name: sourcePackage.name,
-  version: sourcePackage.version,
-  private: true,
-  type: "module",
+  ...sourcePackage,
   main: "index.js",
   scripts: {
     start: "node index.js",
     "db:migrate": "node runtime/scripts/migrate.mjs",
   },
-  engines: sourcePackage.engines,
-  dependencies: sourcePackage.dependencies,
-  overrides: sourcePackage.overrides,
 };
 
 writeFileSync(path.join(dist, "package.json"), `${JSON.stringify(runtimePackage, null, 2)}\n`);
