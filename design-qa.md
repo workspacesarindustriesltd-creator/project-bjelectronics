@@ -12,7 +12,7 @@
   - `/workspace/scratch/bj-admin-v3-orders.jpg` — order-management split view; `1363 × 936` px.
   - `/workspace/scratch/bj-admin-v3-mobile-final.jpg` — responsive overview; `375 × 812` px.
   - `/workspace/scratch/bj-store-v3-product-buy-now.jpg` — desktop product detail with Add to cart, Buy now, and purchase-confidence states; `1348 × 926` px.
-  - `/workspace/scratch/bj-store-v3-buy-now-checkout.jpg` — quantity-aware express checkout and SSLCOMMERZ delivery handoff; `1348 × 926` px.
+  - `/workspace/scratch/bj-store-v3-buy-now-checkout.jpg` — quantity-aware express checkout and offline checkout delivery handoff; `1348 × 926` px.
   - `/workspace/scratch/bj-store-v3-buy-now-mobile.jpg` — 390px product detail and product-card actions; `375 × 2213` px full-page capture.
   - `/workspace/scratch/bj-store-v3-2-product-comparison.jpg` — three-product comparison workspace; `1348 × 926` px.
   - `/workspace/scratch/bj-store-v3-2-customer-reviews.jpg` — product ratings, verified review, delivery estimate, and sharing; `1348 × 926` px.
@@ -21,7 +21,7 @@
   - `/workspace/scratch/bj-electronics-admin-caravan-inventory-v3.3.jpg` — protected admin inventory overview with imported product images, unique SKUs, BDT metrics, and stock controls; `1348 × 926` px.
 - CSS viewports: desktop `1365 × 936` at device scale factor 1; mobile `390 × 844` at device scale factor 1. The desktop screenshot width excludes the browser scrollbar; the mobile capture contains the rendered page content.
 - Density normalization: source and implementation were both inspected at 1× pixel density. The desktop source board and latest browser overview were also placed together in the same visual comparison input before judging fidelity.
-- States: signed-out admin login, authenticated overview, orders list, order detail, fulfillment status update, products, inventory, customers, promotions, settings, open mobile navigation, protected direct-route redirect, product-card Add and Buy now actions, product-detail quantity selection, express-purchase review, SSLCOMMERZ delivery handoff, comparison selection and removal, recently viewed products, save for later, postcode delivery estimate, native/fallback sharing, and authenticated review submission.
+- States: signed-out admin login, authenticated overview, orders list, order detail, fulfillment status update, products, inventory, customers, promotions, settings, open mobile navigation, protected direct-route redirect, product-card Add and Buy now actions, product-detail quantity selection, express-purchase review, offline checkout delivery handoff, comparison selection and removal, recently viewed products, save for later, postcode delivery estimate, native/fallback sharing, and authenticated review submission.
 
 ## Full-view comparison evidence
 
@@ -77,7 +77,7 @@ clear data table that remains usable on narrow screens.
   desktop action row, then reflows Buy now to a full-width mobile control.
 - Express checkout: Buy now preserves the selected quantity, reviews only the
   express item without deleting the existing cart, and opens the same trusted
-  SSLCOMMERZ delivery surface used by standard checkout.
+  offline checkout delivery surface used by standard checkout.
 - Product comparison: the fixed selection tray communicates progress and the
   modal presents price, rating, availability, warranty, returns, delivery,
   Add to cart, and Buy now for as many as three products.

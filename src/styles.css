@@ -387,8 +387,8 @@ img { display: block; max-width: 100%; }
 .checkout-form { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 22px; }
 .checkout-form label { display: flex; flex-direction: column; gap: 6px; }
 .checkout-form label > span { color: #555d6c; font-size: 11px; font-weight: 700; }
-.checkout-form input { width: 100%; height: 43px; border: 1px solid var(--line); border-radius: 8px; padding: 0 11px; outline: 0; }
-.checkout-form input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,58,138,.09); }
+.checkout-form input, .checkout-form select { width: 100%; height: 43px; border: 1px solid var(--line); border-radius: 8px; padding: 0 11px; outline: 0; }
+.checkout-form input:focus, .checkout-form select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,58,138,.09); }
 .checkout-form .wide { grid-column: 1/-1; }
 .checkout-total { display: flex; align-items: center; justify-content: space-between; margin-top: 3px; border-block: 1px solid var(--line); padding-block: 13px; }
 .checkout-total span { color: var(--ink); font-size: 13px; font-weight: 700; text-transform: none; letter-spacing: 0; }

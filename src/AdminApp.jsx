@@ -37,10 +37,10 @@ import { importedCatalog } from "./data/caravan-catalog.js";
 const demoProducts = importedCatalog;
 
 const demoOrders = [
-  { id: "BJ-24018", orderNumber: "BJ-24018", customerName: "BJ Customer", customerPhone: "01700000000", status: "delivered", paymentStatus: "paid", total: 158320, createdAt: "2026-07-18T10:30:00Z", items: 2, courier: "Pathao Courier", tracking: "PTH-884012" },
-  { id: "BJ-23942", orderNumber: "BJ-23942", customerName: "Nusrat Jahan", customerPhone: "01811111111", status: "shipped", paymentStatus: "paid", total: 9070, createdAt: "2026-07-23T13:15:00Z", items: 1, courier: "RedX", tracking: "RDX-230942" },
-  { id: "BJ-23871", orderNumber: "BJ-23871", customerName: "Tanvir Ahmed", customerPhone: "01922222222", status: "processing", paymentStatus: "paid", total: 29864, createdAt: "2026-07-26T08:45:00Z", items: 1, courier: "", tracking: "" },
-  { id: "BJ-23845", orderNumber: "BJ-23845", customerName: "Farhana Rahman", customerPhone: "01633333333", status: "pending", paymentStatus: "unpaid", total: 74005, createdAt: "2026-07-27T12:20:00Z", items: 1, courier: "", tracking: "" },
+  { id: "BJ-24018", orderNumber: "BJ-24018", customerName: "BJ Customer", customerPhone: "01700000000", status: "delivered", paymentStatus: "paid", paymentMethod: "cash_on_delivery", total: 158320, createdAt: "2026-07-18T10:30:00Z", items: 2, courier: "Pathao Courier", tracking: "PTH-884012" },
+  { id: "BJ-23942", orderNumber: "BJ-23942", customerName: "Nusrat Jahan", customerPhone: "01811111111", status: "shipped", paymentStatus: "paid", paymentMethod: "cash_on_delivery", total: 9070, createdAt: "2026-07-23T13:15:00Z", items: 1, courier: "RedX", tracking: "RDX-230942" },
+  { id: "BJ-23871", orderNumber: "BJ-23871", customerName: "Tanvir Ahmed", customerPhone: "01922222222", status: "processing", paymentStatus: "paid", paymentMethod: "cash_on_delivery", total: 29864, createdAt: "2026-07-26T08:45:00Z", items: 1, courier: "", tracking: "" },
+  { id: "BJ-23845", orderNumber: "BJ-23845", customerName: "Farhana Rahman", customerPhone: "01633333333", status: "pending", paymentStatus: "awaiting_payment", paymentMethod: "bank_transfer", total: 74005, createdAt: "2026-07-27T12:20:00Z", items: 1, courier: "", tracking: "" },
 ];
 
 const demoCustomers = [
@@ -109,7 +109,7 @@ function AdminLogin({ onLogin }) {
         <div className="ops-login-copy">
           <span><ShieldCheck weight="fill" /> Protected operations portal</span>
           <h1>Run every part of BJ Electronics from one place.</h1>
-          <p>Securely manage orders, inventory, customers, promotions and payment readiness across the store.</p>
+          <p>Securely manage orders, inventory, customers, promotions and checkout operations across the store.</p>
         </div>
         <div className="ops-login-points">
           <div><CheckCircle weight="fill" /><span><strong>Role-protected access</strong>Dedicated administrator session and API authorization.</span></div>
@@ -196,7 +196,7 @@ function OverviewView({ orders, products, setActive }) {
         <article><div><span>Gross revenue</span><strong>{money(revenue)}</strong><small><b>+12.8%</b> vs last month</small></div><i><ChartLineUp /></i></article>
         <article><div><span>Total orders</span><strong>127</strong><small><b>18</b> awaiting shipment</small></div><i><Receipt /></i></article>
         <article><div><span>Inventory units</span><strong>{inventory}</strong><small><em>{products.filter((product) => product.stock < 15).length}</em> low-stock products</small></div><i><Cube /></i></article>
-        <article><div><span>Payment gateway</span><strong>Sandbox</strong><small><em>Credentials pending</em></small></div><i className="pending"><ShieldCheck /></i></article>
+        <article><div><span>Checkout methods</span><strong>2 active</strong><small><b>COD</b> and bank transfer</small></div><i><ShieldCheck /></i></article>
       </section>
       <div className="ops-overview-grid">
         <section className="ops-card ops-order-activity">
@@ -238,7 +238,7 @@ function OrdersView({ orders, setOrders }) {
       {selected && <aside className="ops-card ops-order-detail">
         <header><div><p>Order details</p><h3>{selected.orderNumber}</h3></div><StatusPill value={selected.status} /></header>
         <div className="ops-detail-block"><span>Customer</span><strong>{selected.customerName}</strong><small>{selected.customerPhone}</small></div>
-        <div className="ops-detail-grid"><span><small>Payment</small><b className="paid">{selected.paymentStatus}</b></span><span><small>Order total</small><b>{money(selected.total)}</b></span><span><small>Items</small><b>{selected.items}</b></span><span><small>Placed</small><b>{new Date(selected.createdAt).toLocaleDateString()}</b></span></div>
+        <div className="ops-detail-grid"><span><small>Payment method</small><b>{(selected.paymentMethod || "cash_on_delivery").replaceAll("_", " ")}</b></span><span><small>Order total</small><b>{money(selected.total)}</b></span><span><small>Items</small><b>{selected.items}</b></span><span><small>Placed</small><b>{new Date(selected.createdAt).toLocaleDateString()}</b></span></div>
         <label className="ops-field"><span>Fulfillment status</span><select value={selected.status} onChange={(event) => updateStatus(event.target.value)}><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select></label>
         <label className="ops-field"><span>Courier</span><input value={selected.courier} onChange={(event) => setSelected({ ...selected, courier: event.target.value })} placeholder="Select or enter courier" /></label>
         <label className="ops-field"><span>Tracking reference</span><input value={selected.tracking} onChange={(event) => setSelected({ ...selected, tracking: event.target.value })} placeholder="Courier tracking number" /></label>
@@ -308,7 +308,7 @@ function SettingsView() {
   return (
     <div className="ops-settings-grid">
       <section className="ops-card"><header><div><p>Domain architecture</p><h3>Store surfaces</h3></div><CheckCircle weight="fill" className="ops-ok" /></header><div className="ops-domain"><i><Storefront /></i><div><strong>Customer storefront</strong><span>https://www.bjelectronics.shop</span></div><b>Store</b></div><div className="ops-domain"><i><ShieldCheck /></i><div><strong>Protected administrator portal</strong><span>https://admin.bjelectronics.shop</span></div><b>Admin</b></div></section>
-      <section className="ops-card"><header><div><p>Payments</p><h3>SSLCOMMERZ connection</h3></div><StatusPill value="pending" /></header><div className="ops-gateway-state"><ShieldCheck weight="duotone" /><h4>Sandbox credentials pending</h4><p>The integration is configured, but no merchant credentials are stored yet. Checkout remains in safe demo mode.</p><button className="ops-secondary">Configure later</button></div></section>
+      <section className="ops-card"><header><div><p>Checkout policy</p><h3>Offline payment methods</h3></div><CheckCircle weight="fill" className="ops-ok" /></header><div className="ops-gateway-state"><ShieldCheck weight="duotone" /><h4>No external payment gateway</h4><p>Orders use cash on delivery or bank transfer. Inventory is reserved atomically when an order is confirmed.</p><button className="ops-secondary">Methods active</button></div></section>
       <section className="ops-card"><header><div><p>Security</p><h3>Administrator access</h3></div></header><div className="ops-security-list"><div><CheckCircle /><span><strong>Dedicated admin cookie</strong><small>HTTP-only, SameSite Strict, 8-hour expiry</small></span></div><div><CheckCircle /><span><strong>Role validation</strong><small>Every admin API request verifies the administrator role</small></span></div><div><CheckCircle /><span><strong>Separate login route</strong><small>Customer sessions cannot access operations APIs</small></span></div></div></section>
     </div>
   );
