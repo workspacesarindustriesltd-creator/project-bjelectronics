@@ -21,7 +21,7 @@ test("serves the administrator shell for nested admin routes", async () => {
     .get("/admin/orders")
     .set("Accept", "text/html")
     .expect(200)
-    .expect(/BJ Electronics/i);
+    .expect(/BJ Admin/i);
 });
 
 test("does not replace unknown API responses with a frontend shell", async () => {
