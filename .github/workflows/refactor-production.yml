@@ -1,9 +1,9 @@
 name: Production Architecture Refactor
 
 on:
-  push:
+  pull_request:
     branches:
-      - refactor/separate-apps-no-payment-gateway-2026-08-04
+      - audit/security-ci-hardening-2026-08-04
 
 permissions:
   contents: write
