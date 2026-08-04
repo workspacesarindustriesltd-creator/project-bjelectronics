@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - main
-      - audit/security-ci-hardening-2026-08-04
   pull_request:
     branches:
       - main
-      - audit/security-ci-hardening-2026-08-04
 
 permissions:
   contents: write
@@ -33,11 +31,11 @@ jobs:
         run: npm run security:audit
 
   refactor-production:
-    if: github.head_ref == 'refactor/separate-apps-no-payment-gateway-2026-08-04'
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 3
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout refactor branch
+      - name: Checkout isolated refactor branch
         uses: actions/checkout@v4
         with:
           ref: refactor/separate-apps-no-payment-gateway-2026-08-04
