@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -25,15 +25,20 @@ jobs:
           cache: npm
       - name: Refresh dependency lockfile
         run: npm install --package-lock-only --ignore-scripts
-      - name: Upload refreshed lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: refreshed-package-lock
-          path: package-lock.json
-          retention-days: 1
       - name: Install dependencies
         run: npm ci
       - name: Run tests and production build
         run: npm run check
       - name: Audit production dependencies
         run: npm run security:audit
+      - name: Commit refreshed lockfile
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Update audited dependency lockfile"
+          git push origin HEAD:${{ github.head_ref }}
