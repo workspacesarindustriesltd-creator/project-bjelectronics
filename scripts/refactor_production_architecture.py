@@ -49,6 +49,11 @@ package = json.loads(package_path.read_text(encoding="utf-8"))
 package["scripts"]["check"] = "npm run build && npm test"
 package_path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
 
+for script in (ROOT / "scripts").glob("*.mjs"):
+    source = script.read_text(encoding="utf-8")
+    if source.startswith("\n#!"):
+        script.write_text(source[1:], encoding="utf-8")
+
 shutil.rmtree(ROOT / "dist", ignore_errors=True)
 IMPLEMENTATION.unlink(missing_ok=True)
 
