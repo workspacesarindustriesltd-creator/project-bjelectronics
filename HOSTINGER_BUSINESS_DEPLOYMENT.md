@@ -1,30 +1,50 @@
 # Hostinger Business Web Hosting deployment
 
-This deployment target uses one managed Node.js website:
+This repository is structured for Hostinger's managed Node.js GitHub deployment with automatic framework and runtime detection.
+
+## Production routes
+
+One Express.js process serves:
 
 - Storefront: `/`
 - Administrator portal: `/admin/`
 - API: `/api/`
 - Database: Hostinger MySQL/MariaDB on `localhost:3306`
 
-The Express process serves both Vite builds and the API. No VPS, Docker, Nginx, or process manager is required.
+## Automatic repository detection
 
-## 1. Protect the existing website and database
+Hostinger can detect the application from the repository root because it contains:
 
-Before replacing an existing website:
+- `package.json` with Express, `main: index.js`, standard `build` and `start` scripts
+- root `index.js` application entrypoint
+- `.nvmrc` and `engines.node` pinned to Node.js 20
+- `package-lock.json` for deterministic npm installation
 
-1. Download a full website backup from hPanel.
-2. Export the production database with phpMyAdmin.
-3. Verify the SQL backup is not empty and keep an off-host copy.
-4. Do not remove an existing website until both backups are verified.
+The production build also creates a self-contained `dist` runtime containing:
 
-The payment-removal migration permanently drops the obsolete `payments` table.
+- `dist/package.json`
+- `dist/package-lock.json`
+- `dist/index.js`
+- `dist/runtime/server`
+- `dist/runtime/database`
+- `dist/client`
 
-## 2. Create the Hostinger database
+This supports Hostinger deployments that start from either the repository root or the selected `dist` output directory.
 
-In hPanel, open **Databases → MySQL Databases** and create or select the production database.
+## 1. Protect existing production data
 
-Record the complete Hostinger-generated values:
+Before replacing an existing website or changing the database schema:
+
+1. Download a complete website backup from hPanel.
+2. Export the production database through phpMyAdmin.
+3. Verify the SQL backup is not empty.
+4. Retain an additional copy outside Hostinger.
+
+Migration `004_remove_online_payment_gateway.sql` permanently drops the obsolete payment table.
+
+## 2. Create or select the Hostinger database
+
+In hPanel, open **Databases → MySQL Databases** and record the complete Hostinger-generated values:
 
 - Database name
 - Database user
@@ -32,7 +52,7 @@ Record the complete Hostinger-generated values:
 - Host: `localhost`
 - Port: `3306`
 
-Hostinger normally prefixes database names and users with the account identifier. Use the complete displayed values.
+Hostinger normally prefixes database names and users. Use the complete displayed values.
 
 ## 3. Prepare the database
 
@@ -40,112 +60,90 @@ Hostinger normally prefixes database names and users with the account identifier
 
 Import `database/schema.sql` through phpMyAdmin.
 
-### Existing production database
+### Existing database
 
-1. Import the verified backup into the selected database if required.
-2. Review `database/migrations/004_remove_online_payment_gateway.sql`.
-3. Run it once through phpMyAdmin after confirming the backup.
-4. Do not rerun the payment-status normalization manually after production orders have been created under the new model.
+1. Confirm the backup is available.
+2. Select the correct production database in phpMyAdmin.
+3. Run `database/migrations/004_remove_online_payment_gateway.sql` once.
+4. Confirm the `orders.payment_method` column exists.
+5. Confirm the obsolete `payments` table is removed.
 
-The application migration runner remains available for controlled environments with command access:
+Where command execution is available, the packaged runtime also supports:
 
 ```bash
 npm run db:migrate
 ```
 
-## 4. Create the Node.js website
+## 4. Connect the GitHub repository
 
 In hPanel:
 
 1. Open **Websites → Add Website**.
-2. Choose **Deploy Web App** or **Node.js Web App**.
+2. Select **Deploy Web App**.
 3. Select **Import Git Repository**.
-4. Connect GitHub or paste the public repository URL.
-5. Select repository `workspacesarindustriesltd-creator/project-bjelectronics`.
-6. Select branch `main`.
-7. Select framework **Express.js** or **Other** if automatic detection does not select Express.
+4. Choose `workspacesarindustriesltd-creator/project-bjelectronics`.
+5. Select branch `main`.
 
-If `bjelectronics.shop` is already attached to another website, download backups first, remove that website only when safe, and then add the domain as the new Node.js website.
+## 5. Deployment settings
 
-## 5. Build settings
-
-Use these values:
+Hostinger should detect most values automatically. Confirm these values before deployment:
 
 | Setting | Value |
 |---|---|
+| Framework | `Express.js` |
 | Node.js version | `20.x` |
-| Root directory | repository root |
+| Root directory | repository root, blank or `.` |
 | Install command | automatic `npm ci` |
-| Build command | `npm run hostinger:build` |
-| Start command | `npm start` |
+| Build command | `npm run build` |
 | Output directory | `dist` |
-| Entry file | `server/index.js` |
+| Entry file | `index.js` |
+| Start command | `npm start` |
 
-Do not set a fixed `PORT`. Hostinger injects the application port at runtime.
+For full tests and the production dependency audit during the Hostinger build, use:
+
+```text
+npm run hostinger:build
+```
+
+Do not configure `server/index.js` as the entry file when the selected output directory is `dist`. The correct output entry is `index.js`.
+
+Do not set a fixed `PORT`; Hostinger supplies the runtime port.
 
 ## 6. Environment variables
 
-Copy the keys from `deploy/hostinger-business.env.example` into the hPanel environment-variable editor and replace every placeholder.
-
-For the single-domain Business deployment, use the same HTTPS origin for:
+Add these values through hPanel and replace every placeholder:
 
 ```env
+NODE_ENV=production
 STORE_URL=https://www.bjelectronics.shop
 ADMIN_URL=https://www.bjelectronics.shop
 PUBLIC_API_URL=https://www.bjelectronics.shop
 VITE_STORE_URL=https://www.bjelectronics.shop
 VITE_ADMIN_URL=https://www.bjelectronics.shop
-```
-
-Required security and database values:
-
-```env
-NODE_ENV=production
-JWT_SECRET=<random secret, at least 32 characters>
+JWT_SECRET=<random secret with at least 32 characters>
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=<full Hostinger database name>
-DB_USER=<full Hostinger database user>
+DB_NAME=<complete Hostinger database name>
+DB_USER=<complete Hostinger database user>
 DB_PASSWORD=<database password>
+DB_CONNECTION_LIMIT=10
+ADMIN_NAME=Store Administrator
 ADMIN_EMAIL=<administrator email>
-ADMIN_PASSWORD=<unique password, at least 12 characters>
+ADMIN_PASSWORD=<unique password with at least 12 characters>
 ```
 
-Do not commit real credentials to GitHub.
+Do not commit production credentials to GitHub.
 
-## 7. Deploy
+## 7. Deploy and verify
 
-Start the deployment from hPanel. Hostinger will install dependencies, run the build command, and start the Express process.
-
-The build must complete all of these stages:
-
-- Storefront production build
-- Administrator production build
-- Packaging
-- Automated tests
-- Production dependency audit
-
-## 8. Initial administrator and catalog
-
-The repository contains controlled seed commands:
-
-```bash
-npm run db:seed-users
-npm run db:seed-catalog
-```
-
-If hPanel does not expose a command runner, create the administrator before launch through a controlled local connection or request Hostinger support to execute the one-time commands. Do not place a password hash or plaintext production password in SQL committed to the repository.
-
-## 9. Verify production
-
-Check:
+After deployment, verify:
 
 - `https://www.bjelectronics.shop/api/health`
 - `https://www.bjelectronics.shop/`
 - `https://www.bjelectronics.shop/admin/`
 
-Then verify customer login, administrator login, catalog loading, cash-on-delivery orders, bank-transfer orders, stock deduction, order cancellation, and inventory restoration.
+Then test customer authentication, administrator authentication, product loading, cash-on-delivery ordering, bank-transfer ordering, stock deduction, cancellation, and inventory restoration.
 
-## 10. Continuous deployment
+## 8. Continuous deployment
 
-When GitHub integration is enabled, Hostinger can redeploy the selected branch after pushes. Keep production changes behind pull requests and require the GitHub Actions checks before merging.
+When the GitHub repository is connected, pushes to the selected branch can trigger automatic redeployment. Keep production changes behind pull requests and require successful GitHub Actions checks before merging.

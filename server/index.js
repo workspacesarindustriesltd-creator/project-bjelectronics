@@ -5,16 +5,21 @@ import { config, isProduction } from "./config.js";
 import { healthcheck } from "./db.js";
 import { MySqlRepository } from "./repository.js";
 
+const hasApplicationShells = (directory) =>
+  existsSync(path.join(directory, "index.html")) &&
+  existsSync(path.join(directory, "admin", "index.html"));
+
 const staticRoot = isProduction
-  ? path.resolve(process.cwd(), "dist", "client")
+  ? [
+      path.resolve(process.cwd(), "dist", "client"),
+      path.resolve(process.cwd(), "client"),
+    ].find(hasApplicationShells)
   : null;
 
-if (staticRoot && !existsSync(path.join(staticRoot, "index.html"))) {
-  throw new Error("Production storefront build is missing. Run npm run build before npm start.");
-}
-
-if (staticRoot && !existsSync(path.join(staticRoot, "admin", "index.html"))) {
-  throw new Error("Production administrator build is missing. Run npm run build before npm start.");
+if (isProduction && !staticRoot) {
+  throw new Error(
+    "Production storefront and administrator builds are missing. Run npm run build before npm start.",
+  );
 }
 
 const app = createApp({

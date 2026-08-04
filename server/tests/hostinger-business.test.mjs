@@ -12,8 +12,9 @@ async function read(relativePath) {
 test("Hostinger Business deployment uses the tested Node.js runtime", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   assert.equal(packageJson.engines.node, "20.x");
+  assert.equal(packageJson.main, "index.js");
   assert.equal(packageJson.scripts["hostinger:build"], "npm run check && npm run security:audit");
-  assert.equal(packageJson.scripts.start, "node server/index.js");
+  assert.equal(packageJson.scripts.start, "node index.js");
 });
 
 test("managed database SQL does not select or create a fixed database name", async () => {

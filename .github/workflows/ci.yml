@@ -27,5 +27,10 @@ jobs:
         run: npm ci
       - name: Run tests and production build
         run: npm run check
+      - name: Validate Hostinger output package
+        run: |
+          npm ci --ignore-scripts --omit=dev --prefix dist
+          node --check dist/index.js
+          node --check dist/runtime/server/index.js
       - name: Audit production dependencies
         run: npm run security:audit
