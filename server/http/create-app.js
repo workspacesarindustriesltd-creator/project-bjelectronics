@@ -1,9 +1,9 @@
-
+import path from "node:path";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import { config } from "../config.js";
+import { config, isProduction } from "../config.js";
 import { errorHandler, notFound } from "./error-handler.js";
 import { createAccountRouter } from "../modules/account/routes.js";
 import { createAdminRouter } from "../modules/admin/routes.js";
@@ -11,7 +11,39 @@ import { createAdminAuthRouter, createCustomerAuthRouter } from "../modules/auth
 import { createCatalogRouter, createCouponValidationRouter } from "../modules/catalog/routes.js";
 import { createOrdersRouter } from "../modules/orders/routes.js";
 
-export function createApp({ repository, healthcheck = async () => true }) {
+function mountStaticApplications(app, staticRoot) {
+  app.get("/admin", (_req, res) => res.redirect(308, "/admin/"));
+
+  app.use(express.static(staticRoot, {
+    index: false,
+    fallthrough: true,
+    setHeaders(res, filePath) {
+      const isHashedAsset = filePath.includes(`${path.sep}assets${path.sep}`);
+      res.setHeader(
+        "Cache-Control",
+        isHashedAsset && isProduction
+          ? "public, max-age=31536000, immutable"
+          : "no-cache",
+      );
+    },
+  }));
+
+  app.use((req, res, next) => {
+    const acceptsHtml = req.accepts("html");
+    const isNavigation = ["GET", "HEAD"].includes(req.method) && acceptsHtml;
+    if (!isNavigation || req.path.startsWith("/api/")) return next();
+
+    const entryFile = req.path.startsWith("/admin/")
+      ? "admin/index.html"
+      : "index.html";
+
+    return res.sendFile(entryFile, { root: staticRoot }, (error) => {
+      if (error) next(error);
+    });
+  });
+}
+
+export function createApp({ repository, healthcheck = async () => true, staticRoot = null }) {
   const app = express();
   const allowedOrigins = new Set([config.storeUrl, config.adminUrl]);
 
@@ -39,6 +71,9 @@ export function createApp({ repository, healthcheck = async () => true }) {
   app.use("/api/account", createAccountRouter(repository));
   app.use("/api/coupons", createCouponValidationRouter(repository));
   app.use("/api/admin", createAdminRouter(repository));
+
+  if (staticRoot) mountStaticApplications(app, staticRoot);
+
   app.use(notFound);
   app.use(errorHandler);
   return app;

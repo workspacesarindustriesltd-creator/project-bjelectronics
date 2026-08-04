@@ -1,6 +1,6 @@
 {
   "name": "bj-electronics-platform",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,12 +20,14 @@
     "test:sites": "node --test tests/sites-worker.test.mjs",
     "check": "npm run build && npm test",
     "security:audit": "npm audit --audit-level=high --omit=dev",
+    "hostinger:build": "npm run check && npm run security:audit",
+    "hostinger:start": "npm start",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed-users": "node server/seed-users.js",
     "db:seed-catalog": "node server/seed-catalog.js"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": "20.x",
     "npm": ">=10.0.0"
   },
   "dependencies": {

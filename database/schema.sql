@@ -1,9 +1,3 @@
-CREATE DATABASE IF NOT EXISTS bj_electronics
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE bj_electronics;
-
 CREATE TABLE IF NOT EXISTS users (
   id CHAR(36) PRIMARY KEY,
   name VARCHAR(80) NOT NULL,
@@ -76,7 +70,6 @@ CREATE TABLE IF NOT EXISTS order_items (
   CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id),
   INDEX idx_order_items_order (order_id)
 );
-
 
 CREATE TABLE IF NOT EXISTS addresses (
   id CHAR(36) PRIMARY KEY,

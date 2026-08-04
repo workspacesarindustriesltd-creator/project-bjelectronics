@@ -1,5 +1,3 @@
-USE bj_electronics;
-
 -- The organized Caravan product catalog is idempotently loaded with:
 -- npm run db:seed-catalog
 

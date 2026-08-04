@@ -1,5 +1,3 @@
-USE bj_electronics;
-
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS subcategory VARCHAR(80) NULL AFTER category,
   ADD COLUMN IF NOT EXISTS brand VARCHAR(80) NULL AFTER subcategory,
@@ -9,4 +7,3 @@ ALTER TABLE products
 
 ALTER TABLE products
   ALTER COLUMN currency SET DEFAULT 'BDT';
-

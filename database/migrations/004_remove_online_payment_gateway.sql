@@ -1,6 +1,3 @@
-
-USE bj_electronics;
-
 DROP TABLE IF EXISTS payments;
 
 UPDATE orders
@@ -13,7 +10,7 @@ END;
 UPDATE orders SET status = 'confirmed' WHERE status = 'pending';
 
 ALTER TABLE orders
-  DROP COLUMN payment_provider,
-  ADD COLUMN payment_method ENUM('cash_on_delivery', 'bank_transfer') NOT NULL DEFAULT 'cash_on_delivery' AFTER payment_status,
+  DROP COLUMN IF EXISTS payment_provider,
+  ADD COLUMN IF NOT EXISTS payment_method ENUM('cash_on_delivery', 'bank_transfer') NOT NULL DEFAULT 'cash_on_delivery' AFTER payment_status,
   MODIFY COLUMN status ENUM('confirmed', 'processing', 'shipped', 'delivered', 'cancelled') NOT NULL DEFAULT 'confirmed',
   MODIFY COLUMN payment_status ENUM('pending', 'awaiting_payment', 'paid', 'refunded', 'cancelled') NOT NULL DEFAULT 'pending';
