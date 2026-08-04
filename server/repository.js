@@ -28,7 +28,7 @@ const mapOrder = (row) => ({
   orderNumber: row.order_number,
   status: row.status,
   paymentStatus: row.payment_status,
-  paymentProvider: row.payment_provider,
+  paymentMethod: row.payment_method,
   total: Number(row.total_amount),
   currency: row.currency,
   customerName: row.customer_name,
@@ -146,97 +146,61 @@ export class MySqlRepository {
     return rows[0] ? mapProduct(rows[0]) : null;
   }
 
-  async createPendingOrder({ userId, items, customer, currency = "BDT" }) {
+  async placeOrder({ userId, items, customer, currency = "BDT", paymentMethod = "cash_on_delivery" }) {
     return withTransaction(async (connection) => {
       const productIds = [...new Set(items.map((item) => Number(item.productId)))];
-      const products = await this.findProductsByIds(productIds, connection);
+      const placeholders = productIds.map(() => "?").join(",");
+      const [rows] = await connection.execute(
+        `SELECT * FROM products WHERE id IN (${placeholders}) FOR UPDATE`,
+        productIds,
+      );
+      const products = rows.map(mapProduct);
       const productMap = new Map(products.map((product) => [product.id, product]));
       let subtotal = 0;
       const lines = items.map((item) => {
         const product = productMap.get(Number(item.productId));
         const quantity = Number(item.quantity);
-        if (!product || !product.active) throw new Error("One or more products are unavailable.");
-        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw new Error("Invalid product quantity.");
-        if (product.stock < quantity) throw new Error(`${product.name} does not have enough stock.`);
-        const lineTotal = product.price * quantity;
+        if (!product || !product.active) throw Object.assign(new Error("One or more products are unavailable."), { status: 409 });
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw Object.assign(new Error("Invalid product quantity."), { status: 400 });
+        if (product.stock < quantity) throw Object.assign(new Error(`${product.name} does not have enough stock.`), { status: 409 });
+        const lineTotal = Number((product.price * quantity).toFixed(2));
         subtotal += lineTotal;
         return { product, quantity, lineTotal };
       });
+
       const shipping = currency === "BDT" ? (subtotal >= 5000 ? 0 : 120) : (subtotal >= 50 ? 0 : 9.99);
       const tax = currency === "BDT" ? 0 : Number((subtotal * 0.08).toFixed(2));
       const total = Number((subtotal + shipping + tax).toFixed(2));
       const id = crypto.randomUUID();
-      const orderNumber = `BJ-${Date.now().toString(36).toUpperCase()}`;
+      const orderNumber = `BJ-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+      const paymentStatus = paymentMethod === "bank_transfer" ? "awaiting_payment" : "pending";
+
       await connection.execute(
         `INSERT INTO orders
-         (id, order_number, user_id, status, payment_status, payment_provider, subtotal, shipping_amount, tax_amount, total_amount, currency, customer_name, customer_email, customer_phone, shipping_address)
-         VALUES (?, ?, ?, 'pending', 'unpaid', 'sslcommerz', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, orderNumber, userId, subtotal, shipping, tax, total, currency, customer.name, customer.email, customer.phone, customer.address],
+         (id, order_number, user_id, status, payment_status, payment_method, subtotal, shipping_amount, tax_amount, total_amount, currency, customer_name, customer_email, customer_phone, shipping_address)
+         VALUES (?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, orderNumber, userId, paymentStatus, paymentMethod, subtotal, shipping, tax, total, currency, customer.name, customer.email, customer.phone, customer.address],
       );
+
       for (const line of lines) {
         await connection.execute(
           `INSERT INTO order_items (order_id, product_id, product_name, sku, quantity, unit_price, line_total)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [id, line.product.id, line.product.name, line.product.sku, line.quantity, line.product.price, line.lineTotal],
         );
+        const [stockUpdate] = await connection.execute(
+          "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
+          [line.quantity, line.product.id, line.quantity],
+        );
+        if (stockUpdate.affectedRows !== 1) throw Object.assign(new Error(`${line.product.name} stock changed during checkout.`), { status: 409 });
       }
-      return { id, orderNumber, subtotal, shipping, tax, total, currency, customer, lines };
+
+      return {
+        id, orderNumber, status: "confirmed", paymentStatus, paymentMethod,
+        subtotal, shipping, tax, total, currency, customer, lines,
+        createdAt: new Date().toISOString(),
+      };
     });
-  }
-
-  async attachPaymentSession(orderId, { transactionId, sessionKey }) {
-    const paymentId = crypto.randomUUID();
-    await pool.execute(
-      `INSERT INTO payments (id, order_id, provider, transaction_id, session_key, status)
-       VALUES (?, ?, 'sslcommerz', ?, ?, 'initiated')`,
-      [paymentId, orderId, transactionId, sessionKey || null],
-    );
-    return paymentId;
-  }
-
-  async findOrderForPayment(transactionId) {
-    const [rows] = await pool.execute(
-      `SELECT o.*, p.id AS payment_id, p.transaction_id
-       FROM payments p JOIN orders o ON o.id = p.order_id WHERE p.transaction_id = ? LIMIT 1`,
-      [transactionId],
-    );
-    return rows[0] || null;
-  }
-
-  async completePayment({ transactionId, validationId, bankTransactionId, gateway, riskLevel, raw }) {
-    return withTransaction(async (connection) => {
-      const [rows] = await connection.execute(
-        `SELECT o.id, o.payment_status FROM payments p JOIN orders o ON o.id = p.order_id
-         WHERE p.transaction_id = ? FOR UPDATE`,
-        [transactionId],
-      );
-      const order = rows[0];
-      if (!order) throw new Error("Order not found for transaction.");
-      if (order.payment_status === "paid") return { id: order.id, alreadyProcessed: true };
-      await connection.execute(
-        `UPDATE payments SET status = 'validated', validation_id = ?, bank_transaction_id = ?, gateway = ?, risk_level = ?, provider_payload = ?, paid_at = NOW()
-         WHERE transaction_id = ?`,
-        [validationId, bankTransactionId, gateway, riskLevel, JSON.stringify(raw), transactionId],
-      );
-      await connection.execute("UPDATE orders SET payment_status = 'paid', status = 'processing' WHERE id = ?", [order.id]);
-      await connection.execute(
-        `UPDATE products p
-         JOIN order_items oi ON oi.product_id = p.id
-         SET p.stock = GREATEST(0, p.stock - oi.quantity)
-         WHERE oi.order_id = ?`,
-        [order.id],
-      );
-      return { id: order.id, alreadyProcessed: false };
-    });
-  }
-
-  async markPaymentFailed(transactionId, status) {
-    await pool.execute("UPDATE payments SET status = ? WHERE transaction_id = ?", [status, transactionId]);
-    await pool.execute(
-      `UPDATE orders o JOIN payments p ON p.order_id = o.id SET o.payment_status = ?, o.status = 'cancelled'
-       WHERE p.transaction_id = ? AND o.payment_status <> 'paid'`,
-      [status, transactionId],
-    );
   }
 
   async listOrdersForUser(userId) {
@@ -346,7 +310,7 @@ export class MySqlRepository {
     const [verifiedRows] = await pool.execute(
       `SELECT 1 FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
-       WHERE oi.product_id = ? AND o.user_id = ? AND o.payment_status = 'paid'
+       WHERE oi.product_id = ? AND o.user_id = ? AND o.status IN ('processing', 'shipped', 'delivered')
        LIMIT 1`,
       [productId, userId],
     );
@@ -382,15 +346,41 @@ export class MySqlRepository {
   }
 
   async updateOrderStatus(id, status) {
-    await pool.execute("UPDATE orders SET status = ? WHERE id = ?", [status, id]);
-    const [rows] = await pool.execute("SELECT * FROM orders WHERE id = ?", [id]);
-    return rows[0] ? mapOrder(rows[0]) : null;
+    return withTransaction(async (connection) => {
+      const [orders] = await connection.execute("SELECT * FROM orders WHERE id = ? FOR UPDATE", [id]);
+      const current = orders[0];
+      if (!current) return null;
+      if (current.status === status) return mapOrder(current);
+
+      const [items] = await connection.execute("SELECT product_id, quantity FROM order_items WHERE order_id = ?", [id]);
+      if (status === "cancelled" && current.status !== "cancelled") {
+        for (const item of items) {
+          await connection.execute("UPDATE products SET stock = stock + ? WHERE id = ?", [item.quantity, item.product_id]);
+        }
+      }
+      if (current.status === "cancelled" && status !== "cancelled") {
+        for (const item of items) {
+          const [result] = await connection.execute(
+            "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
+            [item.quantity, item.product_id, item.quantity],
+          );
+          if (result.affectedRows !== 1) throw Object.assign(new Error("Order cannot be restored because inventory is unavailable."), { status: 409 });
+        }
+      }
+
+      await connection.execute(
+        "UPDATE orders SET status = ?, payment_status = CASE WHEN ? = 'cancelled' THEN 'cancelled' ELSE payment_status END WHERE id = ?",
+        [status, status, id],
+      );
+      const [updated] = await connection.execute("SELECT * FROM orders WHERE id = ?", [id]);
+      return mapOrder(updated[0]);
+    });
   }
 
   async listCustomers() {
     const [rows] = await pool.query(
       `SELECT u.id, u.name, u.email, u.phone, u.created_at,
-       COUNT(o.id) AS order_count, COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN o.total_amount ELSE 0 END), 0) AS lifetime_value
+       COUNT(o.id) AS order_count, COALESCE(SUM(CASE WHEN o.status <> 'cancelled' THEN o.total_amount ELSE 0 END), 0) AS lifetime_value
        FROM users u LEFT JOIN orders o ON o.user_id = u.id
        WHERE u.role = 'customer' GROUP BY u.id ORDER BY u.created_at DESC LIMIT 500`,
     );

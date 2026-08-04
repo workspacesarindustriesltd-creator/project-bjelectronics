@@ -1,92 +1,58 @@
+
 import assert from "node:assert/strict";
 import { access } from "node:fs/promises";
 import test from "node:test";
 import worker from "../worker/index.js";
 
-test("serves existing static assets without a fallback", async () => {
-  const calls = [];
-  const response = await worker.fetch(new Request("https://example.test/assets/app.js"), {
-    ASSETS: {
-      fetch: async (request) => {
-        calls.push(new URL(request.url).pathname);
-        return new Response("asset", { status: 200 });
-      },
+function assets(calls) {
+  return {
+    fetch: async (request) => {
+      const path = new URL(request.url).pathname;
+      calls.push(path);
+      const known = ["/index.html", "/admin/index.html", "/assets/app.js"];
+      return new Response(known.includes(path) ? path : "missing", { status: known.includes(path) ? 200 : 404 });
     },
-  });
+  };
+}
 
+test("serves existing static assets without fallback", async () => {
+  const calls = [];
+  const response = await worker.fetch(new Request("https://www.bjelectronics.shop/assets/app.js"), { ASSETS: assets(calls) });
   assert.equal(response.status, 200);
   assert.deepEqual(calls, ["/assets/app.js"]);
 });
 
-test("falls back to index.html for an unknown app route", async () => {
+test("routes storefront navigation to the storefront shell", async () => {
   const calls = [];
-  const response = await worker.fetch(
-    new Request("https://example.test/flow/step-two?source=share", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async (request) => {
-          const url = new URL(request.url);
-          calls.push(url.pathname + url.search);
-          return new Response(url.pathname === "/index.html" ? "app" : "missing", {
-            status: url.pathname === "/index.html" ? 200 : 404,
-          });
-        },
-      },
-    },
-  );
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(calls, ["/flow/step-two?source=share", "/index.html"]);
+  const response = await worker.fetch(new Request("https://www.bjelectronics.shop/products/laptop", { headers: { accept: "text/html" } }), { ASSETS: assets(calls) });
+  assert.equal(await response.text(), "/index.html");
+  assert.deepEqual(calls, ["/products/laptop", "/index.html"]);
 });
 
-test("serves the protected admin app shell on the admin hostname", async () => {
-  const calls = [];
-  const response = await worker.fetch(
-    new Request("https://admin.bjelectronics.shop/admin/dashboard", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async (request) => {
-          const url = new URL(request.url);
-          calls.push(url.pathname);
-          return new Response(url.pathname === "/index.html" ? "admin app" : "missing", {
-            status: url.pathname === "/index.html" ? 200 : 404,
-          });
-        },
-      },
-    },
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), "admin app");
-  assert.deepEqual(calls, ["/admin/dashboard", "/index.html"]);
-});
-
-test("does not turn missing API or write requests into the app shell", async () => {
-  for (const request of [
-    new Request("https://example.test/api/missing", { headers: { accept: "application/json" } }),
-    new Request("https://example.test/flow", { method: "POST", headers: { accept: "text/html" } }),
-  ]) {
-    let calls = 0;
-    const response = await worker.fetch(request, {
-      ASSETS: {
-        fetch: async () => {
-          calls += 1;
-          return new Response("missing", { status: 404 });
-        },
-      },
-    });
-
-    assert.equal(response.status, 404);
-    assert.equal(calls, 1);
+test("routes administrator hostname and paths to the separate admin shell", async () => {
+  for (const url of ["https://admin.bjelectronics.shop/", "https://www.bjelectronics.shop/admin/dashboard"]) {
+    const calls = [];
+    const response = await worker.fetch(new Request(url, { headers: { accept: "text/html" } }), { ASSETS: assets(calls) });
+    assert.equal(await response.text(), "/admin/index.html");
+    assert.equal(calls.at(-1), "/admin/index.html");
   }
 });
 
-test("emits the files required by Sites packaging", async () => {
+test("does not convert missing API or write requests into an app shell", async () => {
+  for (const request of [
+    new Request("https://www.bjelectronics.shop/api/missing", { headers: { accept: "application/json" } }),
+    new Request("https://www.bjelectronics.shop/flow", { method: "POST", headers: { accept: "text/html" } }),
+  ]) {
+    const calls = [];
+    const response = await worker.fetch(request, { ASSETS: assets(calls) });
+    assert.equal(response.status, 404);
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("emits separate production application shells and Sites metadata", async () => {
   await access(new URL("../dist/client/index.html", import.meta.url));
+  await access(new URL("../dist/client/admin/index.html", import.meta.url));
   await access(new URL("../dist/server/index.js", import.meta.url));
   await access(new URL("../dist/.openai/hosting.json", import.meta.url));
 });

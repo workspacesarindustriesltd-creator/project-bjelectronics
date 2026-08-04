@@ -52,7 +52,7 @@ export const config = {
   nodeEnv,
   port: number(process.env.PORT, 4000),
   storeUrl: origin("STORE_URL", "http://localhost:5173", { requiredInProduction: true }),
-  adminUrl: origin("ADMIN_URL", "http://localhost:5173", { requiredInProduction: true }),
+  adminUrl: origin("ADMIN_URL", "http://localhost:5174", { requiredInProduction: true }),
   publicApiUrl: baseUrl("PUBLIC_API_URL", "http://localhost:4000", { requiredInProduction: true }),
   jwtSecret,
   cookieDomain: read("COOKIE_DOMAIN") || undefined,
@@ -69,10 +69,5 @@ export const config = {
     password: process.env.DB_PASSWORD || "",
     database: read("DB_NAME", "bj_electronics"),
     connectionLimit: number(process.env.DB_CONNECTION_LIMIT, 10),
-  },
-  sslcommerz: {
-    storeId: read("SSLCOMMERZ_STORE_ID"),
-    storePassword: read("SSLCOMMERZ_STORE_PASSWORD"),
-    isLive: process.env.SSLCOMMERZ_IS_LIVE === "true",
   },
 };

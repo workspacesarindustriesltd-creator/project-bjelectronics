@@ -44,9 +44,9 @@ CREATE TABLE IF NOT EXISTS orders (
   id CHAR(36) PRIMARY KEY,
   order_number VARCHAR(30) NOT NULL UNIQUE,
   user_id CHAR(36) NOT NULL,
-  status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') NOT NULL DEFAULT 'pending',
-  payment_status ENUM('unpaid', 'paid', 'failed', 'cancelled', 'invalid') NOT NULL DEFAULT 'unpaid',
-  payment_provider VARCHAR(32) NOT NULL,
+  status ENUM('confirmed', 'processing', 'shipped', 'delivered', 'cancelled') NOT NULL DEFAULT 'confirmed',
+  payment_status ENUM('pending', 'awaiting_payment', 'paid', 'refunded', 'cancelled') NOT NULL DEFAULT 'pending',
+  payment_method ENUM('cash_on_delivery', 'bank_transfer') NOT NULL DEFAULT 'cash_on_delivery',
   subtotal DECIMAL(12,2) NOT NULL,
   shipping_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   tax_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -77,24 +77,6 @@ CREATE TABLE IF NOT EXISTS order_items (
   INDEX idx_order_items_order (order_id)
 );
 
-CREATE TABLE IF NOT EXISTS payments (
-  id CHAR(36) PRIMARY KEY,
-  order_id CHAR(36) NOT NULL,
-  provider VARCHAR(32) NOT NULL,
-  transaction_id VARCHAR(30) NOT NULL UNIQUE,
-  session_key VARCHAR(255) NULL,
-  validation_id VARCHAR(100) NULL,
-  bank_transaction_id VARCHAR(100) NULL,
-  gateway VARCHAR(120) NULL,
-  risk_level TINYINT UNSIGNED NOT NULL DEFAULT 0,
-  status ENUM('initiated', 'validated', 'failed', 'cancelled', 'invalid') NOT NULL DEFAULT 'initiated',
-  provider_payload JSON NULL,
-  paid_at DATETIME NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  INDEX idx_payments_order (order_id)
-);
 
 CREATE TABLE IF NOT EXISTS addresses (
   id CHAR(36) PRIMARY KEY,

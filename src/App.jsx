@@ -13,7 +13,6 @@ import {
   Check,
   ChatCircleText,
   ClockCounterClockwise,
-  CreditCard,
   Cube,
   Envelope,
   Headphones,
@@ -174,7 +173,7 @@ function ServiceStrip() {
     [Truck, "Free delivery", "On orders over ৳5,000"],
     [ShieldCheck, "1 year warranty", "Official brand warranty"],
     [Package, "Easy returns", "30-day return policy"],
-    [CreditCard, "Secure payment", "100% protected"],
+    [ShoppingBag, "Flexible checkout", "Cash on delivery or bank transfer"],
   ];
   return (
     <div className="service-strip">
@@ -490,7 +489,7 @@ function ProductPage({ product, addToCart, buyNow, toggleFavorite, isFavorite, o
           <p className="description">{product.description}</p>
           <div className="detail-price"><strong>{money(product.price)}</strong>{product.oldPrice && <del>{money(product.oldPrice)}</del>}<span>{product.availability === "preorder" ? "Pre-order" : "In stock"}</span></div>
           <div className="product-spec-pills"><span><b>Brand</b>{product.brand}</span><span><b>Type</b>{product.subcategory}</span><span><b>SKU</b>{product.sku}</span></div>
-          <div className="features"><strong>Shopping confidence</strong><span><Check /> Organized under {product.subcategory}</span><span><Check /> Bangladesh delivery estimate available</span><span><Check /> Secure SSLCOMMERZ checkout</span><span><Check /> Warranty support through BJ Electronics</span></div>
+          <div className="features"><strong>Shopping confidence</strong><span><Check /> Organized under {product.subcategory}</span><span><Check /> Bangladesh delivery estimate available</span><span><Check /> Cash on delivery and bank transfer</span><span><Check /> Warranty support through BJ Electronics</span></div>
           <div className="purchase-row">
             <div className="quantity"><button onClick={() => setQty(Math.max(1, qty - 1))} disabled={qty === 1} aria-label="Decrease quantity"><Minus /></button><span>{qty}</span><button onClick={() => setQty(Math.min(10, qty + 1))} disabled={qty === 10} aria-label="Increase quantity"><Plus /></button></div>
             <button className="primary-button add-cart" disabled={product.availability === "preorder"} onClick={add}>{product.availability === "preorder" ? "Pre-order coming soon" : added ? <><Check weight="bold" /> Added to cart</> : <><ShoppingCart /> Add to cart</>}</button>
@@ -541,6 +540,7 @@ function CartPage({
   const [checkoutState, setCheckoutState] = useState("form");
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("cash_on_delivery");
   const [placedOrder, setPlacedOrder] = useState(null);
   const [shipping, setShipping] = useState({
     name: authUser?.name || "",
@@ -596,19 +596,6 @@ function CartPage({
       }
     }
   };
-  const completeDemoOrder = () => {
-    const order = {
-      id: `BJ-${Date.now().toString().slice(-6)}`,
-      orderNumber: `BJ-${Date.now().toString().slice(-6)}`,
-      status: "processing",
-      paymentStatus: "paid",
-      total,
-      createdAt: new Date().toISOString(),
-    };
-    setPlacedOrder(order);
-    setCheckoutState("confirmed");
-    onOrderPlaced(order);
-  };
   const beginCheckout = () => {
     if (!authUser) {
       onCheckoutAuthRequired(activeCart);
@@ -631,17 +618,20 @@ function CartPage({
     setCheckoutBusy(true);
     setCheckoutError("");
     try {
-      const response = await apiRequest("/api/payments/sslcommerz/initiate", {
+      const response = await apiRequest("/api/orders", {
         method: "POST",
         body: JSON.stringify({
           items: grouped.map((item) => ({ productId: item.id, quantity: item.qty })),
           customer: shipping,
           currency: "BDT",
+          paymentMethod,
         }),
       });
-      window.location.assign(response.paymentUrl);
+      setPlacedOrder(response.order);
+      setCheckoutState("confirmed");
+      onOrderPlaced(response.order);
     } catch (error) {
-      setCheckoutError(`${error.message} The local demo can still complete the interface flow.`);
+      setCheckoutError(error.message);
     } finally {
       setCheckoutBusy(false);
     }
@@ -684,7 +674,7 @@ function CartPage({
             <div><span>Estimated tax</span><strong>{money(tax)}</strong></div>
             <div className="summary-total"><span>Total</span><strong>{money(total)}</strong></div>
             <button className="primary-button" onClick={beginCheckout}>{authUser ? isExpress ? "Continue with Buy now" : "Proceed to checkout" : "Sign in to checkout"} <ArrowRight /></button>
-            <p><ShieldCheck /> Secure checkout via SSLCOMMERZ</p>
+            <p><ShieldCheck /> Order securely with offline payment options</p>
           </aside>
         </div>
       )}
@@ -695,8 +685,8 @@ function CartPage({
             <button className="modal-close" onClick={() => setCheckout(false)}><X /></button>
             {checkoutState === "form" ? (
               <>
-                <p>Secure checkout</p><h2>Delivery details</h2>
-                <span>Confirm your address, then continue to the SSLCOMMERZ hosted payment page.</span>
+                <p>Order checkout</p><h2>Delivery details</h2>
+                <span>Confirm your delivery details and choose an available payment method.</span>
                 <form className="checkout-form" onSubmit={submitCheckout}>
                   <label><span>Full name</span><input required value={shipping.name} onChange={(e) => setShipping({ ...shipping, name: e.target.value })} /></label>
                   <label><span>Email address</span><input required type="email" value={shipping.email} onChange={(e) => setShipping({ ...shipping, email: e.target.value })} /></label>
@@ -704,10 +694,9 @@ function CartPage({
                   <label className="wide"><span>Street address</span><input required value={shipping.address} onChange={(e) => setShipping({ ...shipping, address: e.target.value })} placeholder="House, road and area" /></label>
                   <label><span>City</span><input required value={shipping.city} onChange={(e) => setShipping({ ...shipping, city: e.target.value })} /></label>
                   <label><span>Postcode</span><input required value={shipping.postcode} onChange={(e) => setShipping({ ...shipping, postcode: e.target.value })} /></label>
-                  <div className="checkout-total wide"><span>Payable total</span><strong>{money(total)}</strong></div>
+                  <label className="wide"><span>Payment method</span><select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash_on_delivery">Cash on delivery</option><option value="bank_transfer">Bank transfer</option></select></label><div className="checkout-total wide"><span>Order total</span><strong>{money(total)}</strong></div>
                   {checkoutError && <div className="checkout-error wide">{checkoutError}</div>}
-                  <button className="primary-button wide" disabled={checkoutBusy}>{checkoutBusy ? "Creating secure session…" : <><Lock weight="bold" /> Pay securely with SSLCOMMERZ</>}</button>
-                  {checkoutError && <button type="button" className="demo-checkout wide" onClick={completeDemoOrder}>Complete demo order</button>}
+                  <button className="primary-button wide" disabled={checkoutBusy}>{checkoutBusy ? "Placing order…" : <><Lock weight="bold" /> Place order</>}</button>
                 </form>
               </>
             ) : (
@@ -761,7 +750,7 @@ function AuthPanel({ onAuthenticated }) {
         <span><ShieldCheck weight="fill" /> Secure BJ account</span>
         <h1>Your tech, orders and support—all in one place.</h1>
         <p>Save your delivery details, track every order and enjoy a faster checkout experience.</p>
-        <div><b>01</b><span><strong>Track orders</strong>See payment, processing and delivery progress.</span></div>
+        <div><b>01</b><span><strong>Track orders</strong>See confirmation, processing and delivery progress.</span></div>
         <div><b>02</b><span><strong>Checkout faster</strong>Reuse verified customer and delivery details.</span></div>
         <div><b>03</b><span><strong>Dedicated support</strong>Keep every purchase connected to your profile.</span></div>
       </section>
@@ -909,7 +898,7 @@ function AdminDashboard({ catalog, setCatalog, orders }) {
   };
   return (
     <main className="shell admin-page">
-      <header className="admin-heading"><div><p>Store operations</p><h1>Commerce control center</h1><span>Products, inventory, orders and payment health in one workspace.</span></div><button className="primary-button" onClick={() => setView("add")}><Plus /> Add product</button></header>
+      <header className="admin-heading"><div><p>Store operations</p><h1>Commerce control center</h1><span>Products, inventory, orders and fulfillment health in one workspace.</span></div><button className="primary-button" onClick={() => setView("add")}><Plus /> Add product</button></header>
       <nav className="admin-tabs"><button className={view === "overview" ? "active" : ""} onClick={() => setView("overview")}><TrendUp /> Overview</button><button className={view === "inventory" ? "active" : ""} onClick={() => setView("inventory")}><Cube /> Inventory</button><button className={view === "orders" ? "active" : ""} onClick={() => setView("orders")}><Package /> Orders</button><button className={view === "customers" ? "active" : ""} onClick={() => setView("customers")}><UsersThree /> Customers</button><button className={view === "coupons" ? "active" : ""} onClick={() => setView("coupons")}><Tag /> Coupons</button></nav>
       {view === "overview" && (
         <>
@@ -917,7 +906,7 @@ function AdminDashboard({ catalog, setCatalog, orders }) {
             <article><span>Revenue</span><strong>{money(48230.86)}</strong><b>+12.8% this month</b><TrendUp /></article>
             <article><span>Orders</span><strong>{orders.length + 124}</strong><b>18 awaiting shipment</b><Package /></article>
             <article><span>Inventory</span><strong>{stockValue}</strong><b>{catalog.filter((p) => p.stock < 15).length} low-stock items</b><Cube /></article>
-            <article><span>Payment success</span><strong>98.4%</strong><b>SSLCOMMERZ healthy</b><ShieldCheck /></article>
+            <article><span>Checkout methods</span><strong>2 active</strong><b>COD and bank transfer</b><ShieldCheck /></article>
           </section>
           <div className="admin-split">
             <section><div className="account-section-head"><div><p>Attention needed</p><h2>Low inventory</h2></div><button onClick={() => setView("inventory")}>Manage all</button></div>{catalog.filter((p) => p.stock < 20).slice(0, 5).map((product) => <div className="stock-alert" key={product.id}><img src={product.image} alt="" /><div><strong>{product.name}</strong><span>{product.sku || `BJ-${product.id}`}</span></div><b>{product.stock} left</b></div>)}</section>
