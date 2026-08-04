@@ -1,0 +1,49 @@
+name: Container Build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "deploy/**"
+      - ".dockerignore"
+      - "package.json"
+      - "package-lock.json"
+      - "apps/**"
+      - "src/**"
+      - "server/**"
+      - "database/**"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Validate production Compose configuration
+        env:
+          JWT_SECRET: ci-only-secret-with-at-least-32-characters
+          DB_PASSWORD: ci-database-password
+          MYSQL_ROOT_PASSWORD: ci-root-database-password
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASSWORD: ci-admin-password-123
+        run: docker compose -f deploy/compose.production.yml config >/dev/null
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - deploy/docker/Dockerfile.store
+          - deploy/docker/Dockerfile.admin
+          - deploy/docker/Dockerfile.api
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build --file "${{ matrix.dockerfile }}" .
