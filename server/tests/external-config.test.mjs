@@ -95,12 +95,12 @@ test("Hostinger production template contains all external service variables", ()
   for (const name of [
     "UPSTASH_REDIS_REST_URL",
     "UPSTASH_REDIS_REST_TOKEN",
-    "REDIS_REQUIRED=true",
+    "REDIS_REQUIRED=false",
     "CLOUDINARY_CLOUD_NAME",
     "CLOUDINARY_API_KEY",
     "CLOUDINARY_API_SECRET",
     "CLOUDINARY_SIGNATURE_ALGORITHM=sha256",
-    "CLOUDINARY_REQUIRED=true",
+    "CLOUDINARY_REQUIRED=false",
   ]) {
     assert.match(env, new RegExp(`^${name}`, "m"));
   }
