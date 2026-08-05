@@ -10,7 +10,10 @@ import { csrfProtection, issueCsrfToken } from "./csrf.js";
 import { errorHandler, notFound } from "./error-handler.js";
 import { createAccountRouter } from "../modules/account/routes.js";
 import { createAdminRouter } from "../modules/admin/routes.js";
+import { createAdminBootstrapRouter } from "../modules/admin/bootstrap.js";
+import { createAdminControlRouter, createStorefrontConfigRouter } from "../modules/admin/control-center.js";
 import { createAdminAuthRouter, createCustomerAuthRouter } from "../modules/auth/routes.js";
+import { createAdminOAuthRouter } from "../modules/auth/admin-oauth.js";
 import { createCatalogRouter, createCouponValidationRouter } from "../modules/catalog/routes.js";
 import { createOrdersRouter } from "../modules/orders/routes.js";
 
@@ -119,6 +122,7 @@ export function createApp({
   rateLimit = {},
   cache = null,
   media = null,
+  adminControl = null,
 }) {
   const app = express();
   const allowedOrigins = new Set([config.storeUrl, config.adminUrl]);
@@ -181,8 +185,12 @@ export function createApp({
       },
     });
   });
+
   app.use("/api/auth", authenticationLimiter, createCustomerAuthRouter(repository));
-  app.use("/api/admin/auth", authenticationLimiter, createAdminAuthRouter(repository));
+  if (adminControl) {
+    app.use("/api/admin/auth/oauth", authenticationLimiter, createAdminOAuthRouter(repository, adminControl));
+  }
+  app.use("/api/admin/auth", authenticationLimiter, createAdminAuthRouter(repository, { adminControl }));
   app.use("/api/products", createCatalogRouter(repository, {
     cache,
     catalogTtlSeconds: config.redis.catalogTtlSeconds,
@@ -191,7 +199,12 @@ export function createApp({
   app.use("/api/orders", createOrdersRouter(repository));
   app.use("/api/account", createAccountRouter(repository));
   app.use("/api/coupons", createCouponValidationRouter(repository));
-  app.use("/api/admin", createAdminRouter(repository, { cache, media }));
+  if (adminControl) {
+    app.use("/api/storefront", createStorefrontConfigRouter(adminControl));
+    app.use("/api/admin/control", createAdminBootstrapRouter(adminControl));
+    app.use("/api/admin/control", createAdminControlRouter(adminControl, { cache, media }));
+  }
+  app.use("/api/admin", createAdminRouter(repository, { cache, media, controlRepository: adminControl }));
 
   if (staticRoot) mountStaticApplications(app, staticRoot);
 

@@ -8,7 +8,7 @@ test("exposes a conventional root Node.js entrypoint for Hostinger detection", a
   const manifest = await readJson(new URL("../../package.json", import.meta.url));
   assert.equal(manifest.main, "index.js");
   assert.equal(manifest.scripts.start, "node index.js");
-  assert.equal(manifest.engines.node, "20.x");
+  assert.equal(manifest.engines.node, ">=22.12 <23");
   await access(new URL("../../index.js", import.meta.url));
   await access(new URL("../../.nvmrc", import.meta.url));
 });

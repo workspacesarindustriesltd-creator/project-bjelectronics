@@ -65,6 +65,16 @@ if (isProduction && jwtSecret.length < 32) {
   throw new Error("JWT_SECRET must contain at least 32 characters in production.");
 }
 
+const adminVaultKey = read("ADMIN_VAULT_KEY", jwtSecret);
+if (isProduction && adminVaultKey.length < 32) {
+  throw new Error("ADMIN_VAULT_KEY must contain at least 32 characters in production.");
+}
+
+const storeUrl = origin("STORE_URL", "http://localhost:5173", { requiredInProduction: true });
+const adminUrl = origin("ADMIN_URL", "http://localhost:5174", { requiredInProduction: true });
+const publicApiUrl = baseUrl("PUBLIC_API_URL", "http://localhost:4000", { requiredInProduction: true });
+const oauthCallbackBaseUrl = baseUrl("OAUTH_CALLBACK_BASE_URL", publicApiUrl);
+
 const redisRestUrl = optionalHttpsUrl("UPSTASH_REDIS_REST_URL");
 const redisRestToken = read("UPSTASH_REDIS_REST_TOKEN");
 if (Boolean(redisRestUrl) !== Boolean(redisRestToken)) {
@@ -93,16 +103,28 @@ if (!["sha1", "sha256"].includes(cloudinarySignatureAlgorithm)) {
 export const config = {
   nodeEnv,
   port: number(process.env.PORT, 4000),
-  storeUrl: origin("STORE_URL", "http://localhost:5173", { requiredInProduction: true }),
-  adminUrl: origin("ADMIN_URL", "http://localhost:5174", { requiredInProduction: true }),
-  publicApiUrl: baseUrl("PUBLIC_API_URL", "http://localhost:4000", { requiredInProduction: true }),
+  storeUrl,
+  adminUrl,
+  publicApiUrl,
   jwtSecret,
+  adminVaultKey,
   cookieDomain: read("COOKIE_DOMAIN") || undefined,
   adminSeed: {
     name: read("ADMIN_NAME", "Store Administrator"),
     email: read("ADMIN_EMAIL"),
     phone: read("ADMIN_PHONE"),
     password: read("ADMIN_PASSWORD"),
+  },
+  oauth: {
+    callbackBaseUrl: oauthCallbackBaseUrl,
+    google: {
+      clientId: read("GOOGLE_CLIENT_ID"),
+      clientSecret: read("GOOGLE_CLIENT_SECRET"),
+    },
+    github: {
+      clientId: read("GITHUB_CLIENT_ID"),
+      clientSecret: read("GITHUB_CLIENT_SECRET"),
+    },
   },
   database: {
     host: read("DB_HOST", "127.0.0.1"),

@@ -21,6 +21,13 @@ const safeUser = (user) => ({
   createdAt: user.created_at || user.createdAt,
 });
 
+async function safeAdminUser(user, adminControl) {
+  const result = safeUser(user);
+  if (!adminControl) return { ...result, roles: [], permissions: ["*"] };
+  const authorization = await adminControl.getAuthorization(user.id);
+  return { ...result, ...authorization };
+}
+
 export function createCustomerAuthRouter(repository) {
   const router = Router();
 
@@ -69,7 +76,7 @@ export function createCustomerAuthRouter(repository) {
   return router;
 }
 
-export function createAdminAuthRouter(repository) {
+export function createAdminAuthRouter(repository, { adminControl } = {}) {
   const router = Router();
 
   router.post("/login", async (req, res) => {
@@ -82,12 +89,20 @@ export function createAdminAuthRouter(repository) {
       return res.status(401).json({ error: "Administrator credentials are incorrect." });
     }
 
-    const result = safeUser(user);
+    const result = await safeAdminUser(user, adminControl);
     setAdminSessionCookie(
       res,
       createSession(result, "bj-electronics-admin", "2h"),
     );
     clearSessionCookie(res);
+    await adminControl?.audit?.({
+      actorUserId: user.id,
+      action: "admin.email.login",
+      entityType: "session",
+      entityId: user.id,
+      ipAddress: req.ip || null,
+      userAgent: req.get("user-agent") || null,
+    });
     return res.json({ user: result });
   });
 
@@ -96,10 +111,18 @@ export function createAdminAuthRouter(repository) {
     if (!user || user.role !== "admin") {
       return res.status(404).json({ error: "Administrator account not found." });
     }
-    return res.json({ user: safeUser(user) });
+    return res.json({ user: await safeAdminUser(user, adminControl) });
   });
 
-  router.post("/logout", (_req, res) => {
+  router.post("/logout", async (req, res) => {
+    await adminControl?.audit?.({
+      actorUserId: req.cookies?.bj_admin_session ? req.user?.sub || null : null,
+      action: "admin.logout",
+      entityType: "session",
+      entityId: req.user?.sub || null,
+      ipAddress: req.ip || null,
+      userAgent: req.get("user-agent") || null,
+    }).catch(() => undefined);
     clearAdminSessionCookie(res);
     return res.status(204).end();
   });

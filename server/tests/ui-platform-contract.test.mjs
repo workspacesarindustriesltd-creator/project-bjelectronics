@@ -7,13 +7,15 @@ const root = process.cwd();
 const read = (file) => readFile(path.join(root, file), "utf8");
 const responsiveMediaQuery = /@media\s*\(max-width:/;
 
-test("storefront production entry uses the modular accessible application", async () => {
-  const [entry, app, css] = await Promise.all([
+test("storefront production entry uses the modular accessible application and runtime customization", async () => {
+  const [entry, app, css, runtimeConfig] = await Promise.all([
     read("apps/store/main.jsx"),
     read("src/store/StoreApp.jsx"),
     read("src/store/store.css"),
+    read("src/store/runtime-config.js"),
   ]);
   assert.match(entry, /StoreApp/);
+  assert.match(entry, /initializeStorefrontConfig/);
   assert.match(entry, /store\.css/);
   for (const route of ["/shop", "/checkout", "/wishlist", "/compare", "/track-order", "/account/addresses", "/privacy-policy", "/return-policy", "/terms"]) {
     assert.match(app, new RegExp(route.replaceAll("/", "\\/")));
@@ -26,30 +28,46 @@ test("storefront production entry uses the modular accessible application", asyn
   assert.match(app, /aria-live="polite"/);
   assert.match(app, /role="dialog"/);
   assert.doesNotMatch(app, /\/api\/admin/);
+  assert.match(runtimeConfig, /\/api\/storefront\/config/);
+  assert.match(runtimeConfig, /--brand/);
+  assert.match(runtimeConfig, /meta\("description"/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, responsiveMediaQuery);
 });
 
-test("administrator production entry uses real protected workflows", async () => {
-  const [entry, app, css] = await Promise.all([
+test("administrator production entry uses the enterprise control center and protected workflows", async () => {
+  const [entry, app, primitives, css] = await Promise.all([
     read("apps/admin/main.jsx"),
-    read("src/admin/AdminPortal.jsx"),
-    read("src/admin/admin-portal.css"),
+    read("src/admin-enterprise/AdminEnterprise.jsx"),
+    read("src/admin-enterprise/ui.jsx"),
+    read("src/admin-enterprise/admin-enterprise.css"),
   ]);
-  assert.match(entry, /AdminPortal/);
-  assert.match(entry, /admin-portal\.css/);
-  for (const endpoint of ["/api/admin/products", "/api/admin/orders", "/api/admin/customers", "/api/admin/coupons", "/api/admin/integrations", "/api/admin/auth/login"]) {
+  assert.match(entry, /AdminEnterprise/);
+  assert.match(app, /MediaManager/);
+  assert.match(app, /CatalogOperations/);
+  assert.match(app, /CommandPalette/);
+  for (const page of ["Store customization", "Integrations", "Administrators & RBAC", "Audit history", "System settings"]) {
+    assert.match(app, new RegExp(page.replace(/[&]/g, "&")));
+  }
+  for (const endpoint of [
+    "/api/admin/products", "/api/admin/orders", "/api/admin/customers", "/api/admin/coupons",
+    "/api/admin/integrations", "/api/admin/auth/login", "/api/admin/control/bootstrap",
+    "/api/admin/control/integrations", "/api/admin/control/roles", "/api/admin/control/audit",
+  ]) {
     assert.match(app, new RegExp(endpoint.replaceAll("/", "\\/")));
   }
-  assert.match(app, /MediaManager/);
-  assert.match(app, /role="dialog"/);
-  assert.match(app, /aria-live="polite"/);
+  assert.match(app, /\/api\/admin\/auth\/oauth\/\$\{provider\}\/start/);
+  assert.match(primitives, /role="dialog"/);
+  assert.match(primitives, /aria-modal="true"/);
+  assert.match(primitives, /aria-live="polite"/);
+  assert.match(primitives, /role="switch"/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, responsiveMediaQuery);
-  for (const forbidden of ["admin@bjelectronics.shop", "admin12345", "CLOUDINARY_API_SECRET", "UPSTASH_REDIS_REST_TOKEN"]) {
+  for (const forbidden of ["admin@bjelectronics.shop", "admin12345", "CLOUDINARY_API_SECRET", "UPSTASH_REDIS_REST_TOKEN", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"]) {
     assert.doesNotMatch(app, new RegExp(forbidden));
+    assert.doesNotMatch(primitives, new RegExp(forbidden));
   }
 });
 
