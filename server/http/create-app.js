@@ -117,6 +117,8 @@ export function createApp({
   healthcheck = async () => true,
   staticRoot = null,
   rateLimit = {},
+  cache = null,
+  media = null,
 }) {
   const app = express();
   const allowedOrigins = new Set([config.storeUrl, config.adminUrl]);
@@ -163,15 +165,33 @@ export function createApp({
   }));
   app.get("/api/health", async (_req, res) => {
     await healthcheck();
-    return res.json({ status: "ok", service: "bj-electronics-api", checkout: "offline" });
+    const [redis, cloudinary] = await Promise.all([
+      cache?.health?.() || { status: "disabled" },
+      media?.health?.() || { status: "disabled" },
+    ]);
+    const status = redis.status === "degraded" ? "degraded" : "ok";
+    return res.json({
+      status,
+      service: "bj-electronics-api",
+      checkout: "offline",
+      dependencies: {
+        database: { status: "ok" },
+        redis,
+        cloudinary,
+      },
+    });
   });
   app.use("/api/auth", authenticationLimiter, createCustomerAuthRouter(repository));
   app.use("/api/admin/auth", authenticationLimiter, createAdminAuthRouter(repository));
-  app.use("/api/products", createCatalogRouter(repository));
+  app.use("/api/products", createCatalogRouter(repository, {
+    cache,
+    catalogTtlSeconds: config.redis.catalogTtlSeconds,
+    reviewTtlSeconds: config.redis.reviewTtlSeconds,
+  }));
   app.use("/api/orders", createOrdersRouter(repository));
   app.use("/api/account", createAccountRouter(repository));
   app.use("/api/coupons", createCouponValidationRouter(repository));
-  app.use("/api/admin", createAdminRouter(repository));
+  app.use("/api/admin", createAdminRouter(repository, { cache, media }));
 
   if (staticRoot) mountStaticApplications(app, staticRoot);
 
