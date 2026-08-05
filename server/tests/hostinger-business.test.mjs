@@ -17,6 +17,21 @@ test("Hostinger Business deployment uses the tested Node.js runtime", async () =
   assert.equal(packageJson.scripts.start, "node index.js");
 });
 
+test("Hostinger production URLs use one apex origin with path-based admin and API routing", async () => {
+  const env = await read("deploy/hostinger-business.env.example");
+  const expected = [
+    "STORE_URL=https://bjelectronics.shop",
+    "ADMIN_URL=https://bjelectronics.shop",
+    "PUBLIC_API_URL=https://bjelectronics.shop",
+    "VITE_STORE_URL=https://bjelectronics.shop",
+    "VITE_ADMIN_URL=https://bjelectronics.shop",
+  ];
+
+  for (const value of expected) assert.match(env, new RegExp(`^${value}$`, "m"));
+  assert.doesNotMatch(env, /https:\/\/www\.bjelectronics\.shop/);
+  assert.doesNotMatch(env, /=(?:https:\/\/bjelectronics\.shop)\/(?:admin|api)\/?$/m);
+});
+
 test("managed database SQL does not select or create a fixed database name", async () => {
   const files = [
     "database/schema.sql",
