@@ -1,12 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { AdminApp } from "../../src/AdminApp.jsx";
-import "../../src/styles.css";
-import "../../src/admin-styles.css";
+import { AdminPortal } from "../../src/admin/AdminPortal.jsx";
+import "../../src/admin/admin-portal.css";
 import "../../src/admin-media.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <AdminApp />
+    <AdminPortal />
   </React.StrictMode>,
 );
