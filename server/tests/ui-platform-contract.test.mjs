@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const read = (file) => readFile(path.join(root, file), "utf8");
+const responsiveMediaQuery = /@media\s*\(max-width:/;
 
 test("storefront production entry uses the modular accessible application", async () => {
   const [entry, app, css] = await Promise.all([
@@ -17,16 +18,17 @@ test("storefront production entry uses the modular accessible application", asyn
   for (const route of ["/shop", "/checkout", "/wishlist", "/compare", "/track-order", "/account/addresses", "/privacy-policy", "/return-policy", "/terms"]) {
     assert.match(app, new RegExp(route.replaceAll("/", "\\/")));
   }
-  for (const endpoint of ["/api/products", "/api/orders", "/api/account/wishlist", "/api/account/addresses", "/api/auth/login", "/api/auth/register"]) {
+  for (const endpoint of ["/api/products", "/api/orders", "/api/account/wishlist", "/api/account/addresses"]) {
     assert.match(app, new RegExp(endpoint.replaceAll("/", "\\/")));
   }
+  assert.match(app, /\/api\/auth\/\$\{login \? "login" : "register"\}/);
   assert.match(app, /Skip to main content/);
   assert.match(app, /aria-live="polite"/);
   assert.match(app, /role="dialog"/);
   assert.doesNotMatch(app, /\/api\/admin/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /@media \(max-width:/);
+  assert.match(css, responsiveMediaQuery);
 });
 
 test("administrator production entry uses real protected workflows", async () => {
@@ -45,7 +47,7 @@ test("administrator production entry uses real protected workflows", async () =>
   assert.match(app, /aria-live="polite"/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /@media \(max-width:/);
+  assert.match(css, responsiveMediaQuery);
   for (const forbidden of ["admin@bjelectronics.shop", "admin12345", "CLOUDINARY_API_SECRET", "UPSTASH_REDIS_REST_TOKEN"]) {
     assert.doesNotMatch(app, new RegExp(forbidden));
   }
