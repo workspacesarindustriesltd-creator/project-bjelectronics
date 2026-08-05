@@ -1,0 +1,138 @@
+name: Hostinger Deployment
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hostinger-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package-production:
+    name: Build production package
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout verified revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build tested Hostinger output
+        run: npm run hostinger:build
+
+      - name: Validate managed runtime
+        run: |
+          npm ci --ignore-scripts --omit=dev --prefix dist
+          node --check dist/index.js
+          node --check dist/runtime/server/index.js
+          test "$(tr -d '\r\n' < dist/.nvmrc)" = "22"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const manifest = JSON.parse(readFileSync("dist/package.json", "utf8"));
+          if (manifest.engines?.node !== ">=22.12 <23") {
+            throw new Error(`Unexpected production Node.js engine: ${manifest.engines?.node}`);
+          }
+          if (manifest.main !== "index.js" || manifest.scripts?.start !== "node index.js") {
+            throw new Error("Invalid Hostinger runtime entry configuration.");
+          }
+          NODE
+
+      - name: Create immutable deployment artifact
+        run: |
+          tar -C dist -czf hostinger-production.tgz .
+          sha256sum hostinger-production.tgz > hostinger-production.tgz.sha256
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          path: |
+            hostinger-production.tgz
+            hostinger-production.tgz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Hostinger production package"
+            echo ""
+            echo "- Revision: \`${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}\`"
+            echo "- Runtime: Node.js 22"
+            echo "- Build command: \`npm run hostinger:build\`"
+            echo "- Output directory: \`dist\`"
+            echo "- Entry file: \`index.js\`"
+            echo "- Artifact checksum: \`$(cut -d ' ' -f1 hostinger-production.tgz.sha256)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  trigger-hostinger:
+    name: Trigger Hostinger deployment
+    needs: package-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env:
+      HOSTINGER_DEPLOY_WEBHOOK_URL: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK_URL }}
+    steps:
+      - name: Trigger optional Hostinger webhook
+        run: |
+          if [ -z "$HOSTINGER_DEPLOY_WEBHOOK_URL" ]; then
+            echo "No deploy webhook is configured. Hostinger GitHub integration will deploy automatically from the main branch."
+            exit 0
+          fi
+          curl --fail --silent --show-error \
+            --retry 3 --retry-delay 5 --retry-all-errors \
+            --request POST "$HOSTINGER_DEPLOY_WEBHOOK_URL"
+
+  verify-production:
+    name: Verify public deployment
+    needs:
+      - package-production
+      - trigger-hostinger
+    if: vars.HOSTINGER_HEALTHCHECK_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: production
+    env:
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://bjelectronics.shop' }}
+    steps:
+      - name: Verify API health
+        run: |
+          curl --fail --silent --show-error \
+            --retry 18 --retry-delay 15 --retry-all-errors \
+            "$PRODUCTION_BASE_URL/api/health" > health.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const health = JSON.parse(readFileSync("health.json", "utf8"));
+          if (health.status !== "ok") throw new Error(`Unexpected API status: ${health.status}`);
+          if (health.dependencies?.database?.status !== "ok") {
+            throw new Error("Production database health check failed.");
+          }
+          NODE
+
+      - name: Verify storefront and administrator shell
+        run: |
+          curl --fail --silent --show-error --location "$PRODUCTION_BASE_URL/" > /dev/null
+          curl --fail --silent --show-error --location "$PRODUCTION_BASE_URL/admin/" > /dev/null
