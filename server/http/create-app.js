@@ -48,7 +48,10 @@ function isHashedAsset(filePath) {
 }
 
 function mountStaticApplications(app, staticRoot) {
-  app.get("/admin", (_req, res) => res.redirect(308, "/admin/"));
+  app.get("/admin", (req, res, next) => {
+    if (requestPath(req) !== "/admin") return next();
+    return res.redirect(308, "/admin/");
+  });
 
   app.use("/admin", (req, res, next) => {
     const pathname = requestPath(req);
