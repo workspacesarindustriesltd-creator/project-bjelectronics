@@ -33,6 +33,8 @@ const storefrontForbidden = [
   "admin@bjelectronics.shop",
   "admin12345",
   "bj-admin-demo",
+  "CLOUDINARY_API_SECRET",
+  "UPSTASH_REDIS_REST_TOKEN",
 ];
 
 const administratorForbidden = [
@@ -40,6 +42,9 @@ const administratorForbidden = [
   "admin12345",
   "bj-admin-demo",
   "Local preview credentials are prefilled",
+  "CLOUDINARY_API_SECRET",
+  "UPSTASH_REDIS_REST_TOKEN",
+  "private-secret",
 ];
 
 for (const pattern of storefrontForbidden) {
@@ -50,6 +55,16 @@ for (const pattern of administratorForbidden) {
   if (administratorBundle.includes(pattern)) throw new Error(`Administrator bundle contains forbidden credential content: ${pattern}`);
 }
 
+for (const requiredPattern of [
+  "/api/admin/media/signature",
+  "Upload to Cloudinary",
+  "Create product from media",
+]) {
+  if (!administratorBundle.includes(requiredPattern)) {
+    throw new Error(`Administrator bundle is missing required media integration: ${requiredPattern}`);
+  }
+}
+
 for (const required of [
   path.join(clientRoot, "index.html"),
   path.join(clientRoot, "admin", "index.html"),
@@ -57,4 +72,4 @@ for (const required of [
   if (!existsSync(required)) throw new Error(`Missing required application shell: ${required}`);
 }
 
-console.log("Verified storefront, administrator, and credential bundle boundaries.");
+console.log("Verified storefront, administrator, credential, Redis, and Cloudinary bundle boundaries.");
