@@ -1,6 +1,6 @@
 {
   "name": "bj-electronics-platform",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "private": true,
   "type": "module",
   "main": "index.js",
@@ -11,7 +11,7 @@
     "dev:api": "node --watch server/index.js",
     "dev:full": "concurrently -n STORE,ADMIN,API -c blue,magenta,green \"npm:dev:store\" \"npm:dev:admin\" \"npm:dev:api\"",
     "start": "node index.js",
-    "build": "npm run build:store && npm run build:admin && node scripts/prepare-production-build.mjs && npm run verify:security-boundaries",
+    "build": "npm run build:store && npm run build:admin && node scripts/prepare-production-build.mjs && node scripts/write-runtime-version.mjs && npm run verify:security-boundaries",
     "build:store": "vite build --config vite.store.config.mjs",
     "build:admin": "vite build --config vite.admin.config.mjs",
     "preview:store": "vite preview --config vite.store.config.mjs",
@@ -20,38 +20,40 @@
     "test:api": "node --test server/tests/*.test.mjs",
     "test:sites": "node --test tests/sites-worker.test.mjs",
     "verify:security-boundaries": "node scripts/verify-security-boundaries.mjs",
-    "check": "npm run build && npm test",
+    "check": "npm run verify:source && npm run build && npm test",
     "security:audit": "npm audit --audit-level=high --omit=dev",
     "hostinger:build": "npm run check && npm run security:audit",
     "hostinger:start": "npm start",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed-users": "node server/seed-users.js",
-    "db:seed-catalog": "node server/seed-catalog.js"
+    "db:seed-catalog": "node server/seed-catalog.js",
+    "verify:source": "node scripts/verify-source-quality.mjs",
+    "ci": "npm run check && npm run security:audit"
   },
   "engines": {
-    "node": "20.x",
-    "npm": ">=10.0.0"
+    "node": ">=22.12 <23",
+    "npm": ">=10.9.0"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.10",
-    "@vitejs/plugin-react": "5.0.4",
-    "bcryptjs": "^3.0.3",
-    "concurrently": "^9.2.4",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.6.2",
-    "helmet": "^8.3.0",
-    "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.23.2",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "vite": "6.4.3",
-    "zod": "^4.4.3"
+    "bcryptjs": "3.0.3",
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "express-rate-limit": "8.6.2",
+    "helmet": "8.3.0",
+    "jsonwebtoken": "9.0.3",
+    "mysql2": "3.23.2",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "supertest": "^7.2.2"
+    "@phosphor-icons/react": "2.1.10",
+    "@vitejs/plugin-react": "5.2.0",
+    "concurrently": "9.2.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "supertest": "7.2.2",
+    "vite": "7.3.6"
   },
   "overrides": {
     "postcss": "8.5.23"
