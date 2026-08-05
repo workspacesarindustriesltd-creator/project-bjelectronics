@@ -148,7 +148,7 @@ export function createApp({
       return callback(Object.assign(new Error("Origin is not allowed."), { status: 403 }));
     },
   }));
-  app.use(express.json({ limit: "250kb" }));
+  app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
   app.use("/api", (_req, res, next) => {
