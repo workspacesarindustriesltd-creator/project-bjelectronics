@@ -4,7 +4,7 @@ import { createApp } from "./app.js";
 import { config, isProduction } from "./config.js";
 import { healthcheck } from "./db.js";
 import { MySqlRepository } from "./repository.js";
-import { AdminControlRepository } from "./modules/admin/control-repository.js";
+import { EnterpriseAdminControlRepository } from "./modules/admin/enterprise-control-repository.js";
 import { createRuntimeCloudinaryMedia, createRuntimeRedisCache } from "./services/runtime-integrations.js";
 
 const hasApplicationShells = (directory) =>
@@ -25,7 +25,7 @@ if (isProduction && !staticRoot) {
 }
 
 const repository = new MySqlRepository();
-const adminControl = new AdminControlRepository({ vaultSecret: config.adminVaultKey });
+const adminControl = new EnterpriseAdminControlRepository({ vaultSecret: config.adminVaultKey });
 await adminControl.initialize();
 
 const cache = createRuntimeRedisCache({
