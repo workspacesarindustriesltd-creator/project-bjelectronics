@@ -5,6 +5,11 @@ const number = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const boolean = (value, fallback = false) => {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+};
+
 const nodeEnv = process.env.NODE_ENV?.trim() || "development";
 export const isProduction = nodeEnv === "production";
 
@@ -38,6 +43,18 @@ const baseUrl = (name, fallback, options = {}) => {
   }
 };
 
+const optionalHttpsUrl = (name) => {
+  const value = read(name);
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:") throw new Error("HTTPS is required.");
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    throw new Error(`${name} must be a valid HTTPS URL.`);
+  }
+};
+
 const jwtSecret = read(
   "JWT_SECRET",
   isProduction ? "" : "change-this-development-secret",
@@ -46,6 +63,31 @@ const jwtSecret = read(
 
 if (isProduction && jwtSecret.length < 32) {
   throw new Error("JWT_SECRET must contain at least 32 characters in production.");
+}
+
+const redisRestUrl = optionalHttpsUrl("UPSTASH_REDIS_REST_URL");
+const redisRestToken = read("UPSTASH_REDIS_REST_TOKEN");
+if (Boolean(redisRestUrl) !== Boolean(redisRestToken)) {
+  throw new Error("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be configured together.");
+}
+if (isProduction && boolean(process.env.REDIS_REQUIRED) && !redisRestUrl) {
+  throw new Error("Redis is required in production when REDIS_REQUIRED=true.");
+}
+
+const cloudinaryCloudName = read("CLOUDINARY_CLOUD_NAME");
+const cloudinaryApiKey = read("CLOUDINARY_API_KEY");
+const cloudinaryApiSecret = read("CLOUDINARY_API_SECRET");
+const cloudinaryConfiguredCount = [cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret].filter(Boolean).length;
+if (cloudinaryConfiguredCount > 0 && cloudinaryConfiguredCount < 3) {
+  throw new Error("CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET must be configured together.");
+}
+if (isProduction && boolean(process.env.CLOUDINARY_REQUIRED) && cloudinaryConfiguredCount !== 3) {
+  throw new Error("Cloudinary is required in production when CLOUDINARY_REQUIRED=true.");
+}
+
+const cloudinarySignatureAlgorithm = read("CLOUDINARY_SIGNATURE_ALGORITHM", "sha256").toLowerCase();
+if (!["sha1", "sha256"].includes(cloudinarySignatureAlgorithm)) {
+  throw new Error("CLOUDINARY_SIGNATURE_ALGORITHM must be sha1 or sha256.");
 }
 
 export const config = {
@@ -69,5 +111,22 @@ export const config = {
     password: process.env.DB_PASSWORD || "",
     database: read("DB_NAME", "bj_electronics"),
     connectionLimit: number(process.env.DB_CONNECTION_LIMIT, 10),
+  },
+  redis: {
+    restUrl: redisRestUrl,
+    restToken: redisRestToken,
+    namespace: read("REDIS_NAMESPACE", `bj-electronics:${nodeEnv}`),
+    catalogTtlSeconds: number(process.env.REDIS_CATALOG_TTL_SECONDS, 300),
+    reviewTtlSeconds: number(process.env.REDIS_REVIEW_TTL_SECONDS, 60),
+    requestTimeoutMs: number(process.env.REDIS_REQUEST_TIMEOUT_MS, 2500),
+    required: boolean(process.env.REDIS_REQUIRED),
+  },
+  cloudinary: {
+    cloudName: cloudinaryCloudName,
+    apiKey: cloudinaryApiKey,
+    apiSecret: cloudinaryApiSecret,
+    folder: read("CLOUDINARY_UPLOAD_FOLDER", "bj-electronics/products"),
+    signatureAlgorithm: cloudinarySignatureAlgorithm,
+    required: boolean(process.env.CLOUDINARY_REQUIRED),
   },
 };
