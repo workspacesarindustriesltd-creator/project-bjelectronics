@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { rateLimit as createRateLimit } from "express-rate-limit";
+import { requireAdminPage } from "../auth.js";
 import { config, isProduction } from "../config.js";
 import { csrfProtection, issueCsrfToken } from "./csrf.js";
 import { errorHandler, notFound } from "./error-handler.js";
@@ -13,34 +14,90 @@ import { createAdminAuthRouter, createCustomerAuthRouter } from "../modules/auth
 import { createCatalogRouter, createCouponValidationRouter } from "../modules/catalog/routes.js";
 import { createOrdersRouter } from "../modules/orders/routes.js";
 
+const ADMIN_PUBLIC_PAGES = new Set([
+  "/admin/",
+  "/admin/login",
+  "/admin/login/",
+]);
+
+function requestPath(req) {
+  return req.originalUrl.split("?", 1)[0];
+}
+
+function isHtmlNavigation(req) {
+  return ["GET", "HEAD"].includes(req.method)
+    && Boolean(req.accepts("html"));
+}
+
+function hasFileExtension(pathname) {
+  return Boolean(path.posix.extname(pathname));
+}
+
+function setPrivateResponseHeaders(res) {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+}
+
+function isHashedAsset(filePath) {
+  return /[.-][A-Za-z0-9_-]{8,}\.(?:css|js|mjs|png|jpe?g|webp|avif|svg|woff2?)$/i.test(filePath);
+}
+
 function mountStaticApplications(app, staticRoot) {
-  app.get("/admin", (req, res, next) => {
-    if (req.path !== "/admin") return next();
-    return res.redirect(308, "/admin/");
+  app.get("/admin", (_req, res) => res.redirect(308, "/admin/"));
+
+  app.use("/admin", (req, res, next) => {
+    const pathname = requestPath(req);
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+
+    if (pathname === "/admin/index.html") {
+      return res.redirect(308, "/admin/");
+    }
+
+    const protectedNavigation = isHtmlNavigation(req)
+      && !hasFileExtension(pathname)
+      && !ADMIN_PUBLIC_PAGES.has(pathname);
+
+    if (protectedNavigation) return requireAdminPage(req, res, next);
+    return next();
   });
 
   app.use(express.static(staticRoot, {
     index: false,
     fallthrough: true,
     setHeaders(res, filePath) {
-      const isHashedAsset = filePath.includes(`${path.sep}assets${path.sep}`);
+      if (filePath.endsWith(".html")) {
+        if (filePath.includes(`${path.sep}admin${path.sep}`)) {
+          setPrivateResponseHeaders(res);
+        } else {
+          res.setHeader("Cache-Control", "no-cache, max-age=0, must-revalidate");
+        }
+        return;
+      }
+
+      if (isHashedAsset(filePath) && isProduction) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        return;
+      }
+
       res.setHeader(
         "Cache-Control",
-        isHashedAsset && isProduction
-          ? "public, max-age=31536000, immutable"
+        isProduction
+          ? "public, max-age=86400, stale-while-revalidate=604800"
           : "no-cache",
       );
     },
   }));
 
   app.use((req, res, next) => {
-    const acceptsHtml = req.accepts("html");
-    const isNavigation = ["GET", "HEAD"].includes(req.method) && acceptsHtml;
-    if (!isNavigation || req.path.startsWith("/api/")) return next();
+    const pathname = requestPath(req);
+    if (!isHtmlNavigation(req) || pathname.startsWith("/api/")) return next();
 
-    const entryFile = req.path.startsWith("/admin/")
-      ? "admin/index.html"
-      : "index.html";
+    const isAdminNavigation = pathname.startsWith("/admin/");
+    const entryFile = isAdminNavigation ? "admin/index.html" : "index.html";
+
+    if (isAdminNavigation) setPrivateResponseHeaders(res);
+    else res.setHeader("Cache-Control", "no-cache, max-age=0, must-revalidate");
 
     return res.sendFile(entryFile, { root: staticRoot }, (error) => {
       if (error) next(error);
@@ -85,6 +142,10 @@ export function createApp({
   app.use(express.json({ limit: "250kb" }));
   app.use(express.urlencoded({ extended: false }));
   app.use(cookieParser());
+  app.use("/api", (_req, res, next) => {
+    setPrivateResponseHeaders(res);
+    return next();
+  });
   app.get("/api/csrf-token", issueCsrfToken);
   app.use(csrfProtection);
 
