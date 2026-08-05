@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "../../auth.js";
 import { parse } from "../../http/validate.js";
 import { couponSchema, productSchema } from "../shared/schemas.js";
+import { createCatalogOperationsRouter } from "./catalog-operations.js";
 
 const CATALOG_CACHE_KEYS = ["catalog:products:active"];
 
@@ -25,6 +26,8 @@ export function createAdminRouter(repository, { cache, media } = {}) {
     );
     return res.json(media.createUploadSignature({ resourceType }));
   });
+
+  router.use("/catalog", createCatalogOperationsRouter({ cache }));
 
   router.get("/products", async (_req, res) => res.json({ products: await repository.listProducts({ includeInactive: true }) }));
   router.post("/products", async (req, res) => {
