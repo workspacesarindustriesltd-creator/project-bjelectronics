@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Database } from "@phosphor-icons/react";
 import { AdminPortal } from "./AdminPortal.jsx";
@@ -37,10 +37,10 @@ export function AdminPlatform() {
     return () => window.removeEventListener("popstate", sync);
   }, []);
 
-  const navigate = (nextPath) => {
+  const navigate = useCallback((nextPath) => {
     window.history.replaceState({}, "", nextPath);
     setPath(nextPath);
-  };
+  }, []);
 
   if (path.startsWith("/admin/catalog")) {
     return <CatalogOperations onNavigate={navigate} />;
