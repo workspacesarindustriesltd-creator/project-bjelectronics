@@ -24,6 +24,10 @@ function requestPath(req) {
   return req.originalUrl.split("?", 1)[0];
 }
 
+function isApiPath(pathname) {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
 function isHtmlNavigation(req) {
   return ["GET", "HEAD"].includes(req.method)
     && Boolean(req.accepts("html"));
@@ -91,7 +95,7 @@ function mountStaticApplications(app, staticRoot) {
 
   app.use((req, res, next) => {
     const pathname = requestPath(req);
-    if (!isHtmlNavigation(req) || pathname.startsWith("/api/")) return next();
+    if (!isHtmlNavigation(req) || isApiPath(pathname)) return next();
 
     const isAdminNavigation = pathname.startsWith("/admin/");
     const entryFile = isAdminNavigation ? "admin/index.html" : "index.html";
@@ -149,6 +153,11 @@ export function createApp({
   app.get("/api/csrf-token", issueCsrfToken);
   app.use(csrfProtection);
 
+  app.get("/api", (_req, res) => res.json({
+    status: "ok",
+    service: "bj-electronics-api",
+    health: "/api/health",
+  }));
   app.get("/api/health", async (_req, res) => {
     await healthcheck();
     return res.json({ status: "ok", service: "bj-electronics-api", checkout: "offline" });
