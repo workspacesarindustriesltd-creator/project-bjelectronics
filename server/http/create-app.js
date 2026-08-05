@@ -10,6 +10,7 @@ import { csrfProtection, issueCsrfToken } from "./csrf.js";
 import { errorHandler, notFound } from "./error-handler.js";
 import { createAccountRouter } from "../modules/account/routes.js";
 import { createAdminRouter } from "../modules/admin/routes.js";
+import { createAdminBootstrapRouter } from "../modules/admin/bootstrap.js";
 import { createAdminControlRouter, createStorefrontConfigRouter } from "../modules/admin/control-center.js";
 import { createAdminAuthRouter, createCustomerAuthRouter } from "../modules/auth/routes.js";
 import { createAdminOAuthRouter } from "../modules/auth/admin-oauth.js";
@@ -200,6 +201,7 @@ export function createApp({
   app.use("/api/coupons", createCouponValidationRouter(repository));
   if (adminControl) {
     app.use("/api/storefront", createStorefrontConfigRouter(adminControl));
+    app.use("/api/admin/control", createAdminBootstrapRouter(adminControl));
     app.use("/api/admin/control", createAdminControlRouter(adminControl, { cache, media }));
   }
   app.use("/api/admin", createAdminRouter(repository, { cache, media, controlRepository: adminControl }));
