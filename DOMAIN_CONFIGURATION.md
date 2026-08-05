@@ -1,30 +1,22 @@
 # BJ Electronics production domain configuration
 
-## Canonical application origin
+## Canonical origin
 
-Use one Hostinger-managed Node.js website and one canonical HTTPS origin:
+Use one Hostinger-managed Node.js Web App and one canonical HTTPS origin:
 
 - Storefront: `https://bjelectronics.shop/`
-- Administrator portal: `https://bjelectronics.shop/admin/`
+- Administrator login: `https://bjelectronics.shop/admin/`
+- Protected administrator workspace: `https://bjelectronics.shop/admin/dashboard`
 - API base: `https://bjelectronics.shop/api/`
 - API health check: `https://bjelectronics.shop/api/health`
 
-The administrator portal and API are application paths, not separate domains or subdomains. Do not create `admin` or `api` DNS records for this deployment.
+`/admin` and `/api` are Express application paths, not subdomains. Do not create `admin` or `api` DNS records.
 
-## Hostinger domain connection
+Keep `bjelectronics.shop` as the primary domain. Permanently redirect `www.bjelectronics.shop` to the apex domain when `www` is enabled.
 
-1. Open the deployed Node.js application in hPanel.
-2. Select **Connect domain**.
-3. Enter `bjelectronics.shop`.
-4. Complete any DNS instructions shown by Hostinger.
-5. Wait for DNS propagation and automatic SSL installation.
-6. Keep `bjelectronics.shop` as the primary domain.
+## Runtime URL variables
 
-If `www.bjelectronics.shop` is enabled, redirect it permanently to `https://bjelectronics.shop` so there is one canonical origin.
-
-## Production environment variables
-
-Use the origin only. Do not append `/admin` or `/api` to these variables:
+Use origin-only values:
 
 ```env
 NODE_ENV=production
@@ -35,28 +27,43 @@ VITE_STORE_URL=https://bjelectronics.shop
 VITE_ADMIN_URL=https://bjelectronics.shop
 ```
 
-The application adds `/admin/` and `/api/` through Express routing. Keeping the variables origin-only also preserves correct CORS and cookie behavior.
+Do not append `/admin` or `/api`. The application adds those paths and uses the origin values for CORS validation.
 
-## Deployment settings
+## Hostinger deployment values
 
 ```text
 Framework: Express.js
 Node.js version: 20.x
 Root directory: .
+Install command: npm ci
 Build command: npm run hostinger:build
 Output directory: dist
 Entry file: index.js
 Start command: npm start
 ```
 
-Do not set `PORT`; Hostinger provides it automatically.
+Do not set `PORT`; Hostinger supplies it.
+
+## Route behavior
+
+- `/admin` permanently redirects to `/admin/`.
+- `/admin/` and `/admin/login` serve the login shell without prefilled credentials.
+- Protected `/admin/*` page navigation requires a valid administrator session and otherwise redirects to `/admin/login`.
+- `/api/admin/*` requires a valid administrator session and role.
+- `/admin/*` and `/api/*` return private, non-cacheable, non-indexable headers.
+- Unknown `/api/*` routes return JSON 404 responses and never fall back to a frontend page.
+
+## CDN behavior
+
+Enable Hostinger CDN from **Websites → Dashboard → Performance → CDN** after the domain points to Hostinger. Do not override `private, no-store` responses for `/admin/*` or `/api/*`. Flush CDN once after the first secured deployment or whenever a stale route remains visible.
 
 ## Verification
 
-After domain connection and deployment, verify:
-
-1. `https://bjelectronics.shop/api/health` returns JSON with `status: ok`.
-2. `https://bjelectronics.shop/` loads the storefront.
-3. `https://bjelectronics.shop/admin/` loads the administrator portal.
-4. Unknown `/api/*` routes return JSON 404 responses rather than a frontend page.
-5. Customer and administrator authentication cookies remain isolated.
+1. `/api/health` returns `status: ok`.
+2. `/` loads the public storefront.
+3. The storefront customer account screen contains no administrator links or data.
+4. `/admin/` shows blank administrator credential fields.
+5. `/admin/dashboard` redirects to login without an administrator session.
+6. `/admin/dashboard` loads after valid administrator authentication.
+7. A customer cookie receives `401` from `/api/admin/*`.
+8. `/admin/*` and `/api/*` include `Cache-Control: private, no-store`.
