@@ -1,11 +1,10 @@
-
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "../../src/App.jsx";
-import "../../src/styles.css";
+import { StoreApp } from "../../src/store/StoreApp.jsx";
+import "../../src/store/store.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <StoreApp />
   </React.StrictMode>,
 );
