@@ -34,8 +34,8 @@ export function createCustomerAuthRouter(repository) {
       ...data,
       passwordHash: await bcrypt.hash(data.password, 12),
     });
-    clearAdminSessionCookie(res);
     setSessionCookie(res, createSession(user));
+    clearAdminSessionCookie(res);
     return res.status(201).json({ user });
   });
 
@@ -50,8 +50,8 @@ export function createCustomerAuthRouter(repository) {
     }
 
     const result = safeUser(user);
-    clearAdminSessionCookie(res);
     setSessionCookie(res, createSession(result));
+    clearAdminSessionCookie(res);
     return res.json({ user: result });
   });
 
@@ -83,11 +83,11 @@ export function createAdminAuthRouter(repository) {
     }
 
     const result = safeUser(user);
-    clearSessionCookie(res);
     setAdminSessionCookie(
       res,
       createSession(result, "bj-electronics-admin", "2h"),
     );
+    clearSessionCookie(res);
     return res.json({ user: result });
   });
 
