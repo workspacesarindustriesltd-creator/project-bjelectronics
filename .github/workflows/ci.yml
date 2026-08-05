@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 18
     env:
       CI: true
-      NODE_ENV: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -31,9 +30,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies in Hostinger production mode
-        run: npm ci
-      - name: Verify Vite build dependency is available
-        run: npm exec -- vite --version
+        run: NODE_ENV=production npm ci
+      - name: Verify local Vite build dependency is available
+        run: test -x node_modules/.bin/vite && node_modules/.bin/vite --version
       - name: Run tests and production build
         run: npm run check
       - name: Re-verify frontend security boundaries
