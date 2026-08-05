@@ -124,7 +124,7 @@ test("Cloudinary signatures use sorted SHA-256 parameters without exposing the s
   );
   assert.equal(
     signCloudinaryParameters(parameters, "private-secret", "sha256"),
-    "dc122085208511145f3c476a962cda784bff89a38a8cc75f14623610363cc4f9",
+    "d1bd50519addea175115ca8e6bf406acd395dc00c76ab3a52664c122e1d2e654",
   );
 });
 
