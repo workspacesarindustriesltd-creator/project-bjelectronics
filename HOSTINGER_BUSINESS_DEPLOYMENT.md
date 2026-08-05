@@ -2,14 +2,19 @@
 
 This repository is structured for Hostinger's managed Node.js GitHub deployment with automatic framework and runtime detection.
 
-## Production routes
+## Production domain and routes
 
-One Express.js process serves:
+Use one canonical Hostinger-managed HTTPS origin:
 
-- Storefront: `/`
-- Administrator portal: `/admin/`
-- API: `/api/`
+- Storefront: `https://bjelectronics.shop/`
+- Administrator portal: `https://bjelectronics.shop/admin/`
+- API: `https://bjelectronics.shop/api/`
+- API health check: `https://bjelectronics.shop/api/health`
 - Database: Hostinger MySQL/MariaDB on `localhost:3306`
+
+The administrator portal and API are application paths. Do not create separate `admin` or `api` DNS records for this Business Web Hosting deployment.
+
+If `www.bjelectronics.shop` is enabled, redirect it permanently to `https://bjelectronics.shop` so the application has one canonical origin.
 
 ## Automatic repository detection
 
@@ -74,7 +79,7 @@ Where command execution is available, the packaged runtime also supports:
 npm run db:migrate
 ```
 
-## 4. Connect the GitHub repository
+## 4. Connect the GitHub repository and domain
 
 In hPanel:
 
@@ -83,6 +88,9 @@ In hPanel:
 3. Select **Import Git Repository**.
 4. Choose `workspacesarindustriesltd-creator/project-bjelectronics`.
 5. Select branch `main`.
+6. After deployment, open the Node.js website dashboard and select **Connect domain**.
+7. Enter `bjelectronics.shop` and follow Hostinger's DNS instructions.
+8. Wait for DNS propagation and automatic SSL installation.
 
 ## 5. Deployment settings
 
@@ -115,11 +123,11 @@ Add these values through hPanel and replace every placeholder:
 
 ```env
 NODE_ENV=production
-STORE_URL=https://www.bjelectronics.shop
-ADMIN_URL=https://www.bjelectronics.shop
-PUBLIC_API_URL=https://www.bjelectronics.shop
-VITE_STORE_URL=https://www.bjelectronics.shop
-VITE_ADMIN_URL=https://www.bjelectronics.shop
+STORE_URL=https://bjelectronics.shop
+ADMIN_URL=https://bjelectronics.shop
+PUBLIC_API_URL=https://bjelectronics.shop
+VITE_STORE_URL=https://bjelectronics.shop
+VITE_ADMIN_URL=https://bjelectronics.shop
 JWT_SECRET=<random secret with at least 32 characters>
 DB_HOST=localhost
 DB_PORT=3306
@@ -132,15 +140,17 @@ ADMIN_EMAIL=<administrator email>
 ADMIN_PASSWORD=<unique password with at least 12 characters>
 ```
 
+Keep the URL variables origin-only. Do not append `/admin` or `/api`; Express owns those paths.
+
 Do not commit production credentials to GitHub.
 
 ## 7. Deploy and verify
 
 After deployment, verify:
 
-- `https://www.bjelectronics.shop/api/health`
-- `https://www.bjelectronics.shop/`
-- `https://www.bjelectronics.shop/admin/`
+- `https://bjelectronics.shop/api/health`
+- `https://bjelectronics.shop/`
+- `https://bjelectronics.shop/admin/`
 
 Then test customer authentication, administrator authentication, product loading, cash-on-delivery ordering, bank-transfer ordering, stock deduction, cancellation, and inventory restoration.
 
