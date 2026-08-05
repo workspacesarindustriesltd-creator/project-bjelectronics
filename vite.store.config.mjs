@@ -1,7 +1,7 @@
-
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { storefrontBoundaryPlugin } from "./scripts/storefront-boundary-plugin.mjs";
 
 const resolve = (path) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -18,5 +18,5 @@ export default defineConfig({
     allowedHosts: ["terminal.local"],
     proxy: { "/api": "http://localhost:4000" },
   },
-  plugins: [react()],
+  plugins: [storefrontBoundaryPlugin(), react()],
 });
