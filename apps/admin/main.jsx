@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { AdminPortal } from "../../src/admin/AdminPortal.jsx";
+import { AdminPlatform as AdminPortal } from "../../src/admin/AdminPlatform.jsx";
 import "../../src/admin/admin-portal.css";
 import "../../src/admin-media.css";
 
