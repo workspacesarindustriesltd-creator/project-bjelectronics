@@ -12,8 +12,8 @@ export function cn(...values) {
   }).filter(Boolean).join(" ");
 }
 
-export const Button = forwardRef(function Button({ variant = "default", size = "default", loading = false, className, children, ...props }, ref) {
-  return <button ref={ref} className={cn("ui-button", `ui-button-${variant}`, `ui-button-${size}`, className)} disabled={loading || props.disabled} {...props}>
+export const Button = forwardRef(function Button({ variant = "default", size = "default", loading = false, disabled = false, className, children, ...props }, ref) {
+  return <button ref={ref} className={cn("ui-button", `ui-button-${variant}`, `ui-button-${size}`, className)} {...props} disabled={loading || disabled}>
     {loading && <SpinnerGap className="ui-spin" aria-hidden="true" />}
     {children}
   </button>;
@@ -51,7 +51,7 @@ export function Field({ label, hint, error, required, className, children }) {
 }
 
 export function Switch({ checked, onCheckedChange, label, description, disabled = false }) {
-  return <label className={cn("ui-switch-row", disabled && "disabled")}><span><strong>{label}</strong>{description && <small>{description}</small>}</span><button type="button" role="switch" aria-checked={checked} className={cn("ui-switch", checked && "checked")} onClick={() => !disabled && onCheckedChange(!checked)} disabled={disabled}><i /></button></label>;
+  return <div className={cn("ui-switch-row", disabled && "disabled")}><span><strong>{label}</strong>{description && <small>{description}</small>}</span><button type="button" role="switch" aria-checked={checked} aria-label={label} className={cn("ui-switch", checked && "checked")} onClick={() => !disabled && onCheckedChange(!checked)} disabled={disabled}><i /></button></div>;
 }
 
 export function Tabs({ value, onValueChange, items }) {
@@ -87,8 +87,8 @@ function Overlay({ open, title, description, onClose, children, type = "dialog",
 export function Dialog(props) { return <Overlay type="dialog" {...props} />; }
 export function Sheet(props) { return <Overlay type="sheet" {...props} />; }
 
-export function SearchInput({ value, onChange, placeholder = "Search", className }) {
-  return <label className={cn("ui-search", className)}><MagnifyingGlass aria-hidden="true" /><Input value={value} onChange={onChange} placeholder={placeholder} /></label>;
+export function SearchInput({ value, onChange, placeholder = "Search", className, inputProps = {}, ...props }) {
+  return <label className={cn("ui-search", className)} {...props}><MagnifyingGlass aria-hidden="true" /><Input value={value} onChange={onChange} placeholder={placeholder} {...inputProps} /></label>;
 }
 
 export function DataTable({ columns, rows, getRowKey = (row) => row.id, empty, onRowClick, loading = false }) {
@@ -117,7 +117,7 @@ const ToastContext = createContext(null);
 export function ToastProvider({ children }) {
   const [items, setItems] = useState([]);
   const toast = useCallback((message, variant = "success") => {
-    const id = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     setItems((current) => [...current, { id, message, variant }]);
     window.setTimeout(() => setItems((current) => current.filter((item) => item.id !== id)), 5000);
   }, []);
