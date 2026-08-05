@@ -1,0 +1,37 @@
+name: Verify Hostinger install fix
+
+on:
+  push:
+    branches:
+      - fix/hostinger-vite-install
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: true
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install in Hostinger production mode
+        run: NODE_ENV=production npm ci
+      - name: Verify local Vite binary
+        run: test -x node_modules/.bin/vite && node_modules/.bin/vite --version
+      - name: Run complete application check
+        run: npm run check
+      - name: Validate generated Hostinger runtime
+        run: |
+          npm ci --ignore-scripts --omit=dev --prefix dist
+          node --check dist/index.js
+          node --check dist/runtime/server/index.js
+      - name: Audit production dependencies
+        run: npm run security:audit
