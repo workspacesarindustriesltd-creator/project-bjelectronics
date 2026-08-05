@@ -11,6 +11,7 @@
     "dev:api": "node --watch server/index.js",
     "dev:full": "concurrently -n STORE,ADMIN,API -c blue,magenta,green \"npm:dev:store\" \"npm:dev:admin\" \"npm:dev:api\"",
     "start": "node index.js",
+    "prebuild": "npm install --include=dev --ignore-scripts --prefer-offline --no-audit --no-fund",
     "build": "npm run build:store && npm run build:admin && node scripts/prepare-production-build.mjs && node scripts/write-runtime-version.mjs && npm run verify:security-boundaries",
     "build:store": "vite build --config vite.store.config.mjs",
     "build:admin": "vite build --config vite.admin.config.mjs",
