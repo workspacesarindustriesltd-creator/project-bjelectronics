@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/hostinger-vite-install
   pull_request:
     branches:
       - main
