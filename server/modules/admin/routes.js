@@ -16,11 +16,14 @@ export function createAdminRouter(repository, { cache, media } = {}) {
   }));
 
   router.get("/media/signature", (req, res) => {
+    if (!media?.createUploadSignature) {
+      throw Object.assign(new Error("Cloudinary media storage is not configured."), { status: 503 });
+    }
     const resourceType = parse(
       z.enum(["image", "video"]).default("image"),
       req.query.resourceType || "image",
     );
-    return res.json(media?.createUploadSignature({ resourceType }));
+    return res.json(media.createUploadSignature({ resourceType }));
   });
 
   router.get("/products", async (_req, res) => res.json({ products: await repository.listProducts({ includeInactive: true }) }));
