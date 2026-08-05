@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Activity, ArrowRight, Bell, CaretRight, ChartBar, CheckCircle, CloudArrowUp,
   Cube, Gear, ImageSquare, List, MagnifyingGlass, Moon, Package, PencilSimple,
-  Plus, Receipt, ShieldCheck, ShoppingCart, SignOut, SpinnerGap, SquaresFour,
-  Storefront, Sun, Tag, Trash, TrendUp, Truck, UserCircle, UsersThree, Warning, X,
+  Plus, ShieldCheck, ShoppingCart, SignOut, SpinnerGap, SquaresFour,
+  Storefront, Sun, Tag, TrendUp, Truck, UserCircle, UsersThree, Warning, X,
 } from "@phosphor-icons/react";
 import { MediaManager } from "./MediaManager.jsx";
 import { apiRequest, formatDate, money, readStorage, writeStorage } from "../shared/client.js";
