@@ -1,0 +1,240 @@
+.media-manager-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+  gap: 24px;
+}
+
+.media-upload-card > header,
+.media-product-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.media-upload-card > header > svg,
+.media-product-card > header > svg {
+  width: 38px;
+  height: 38px;
+  color: var(--ops-primary, #2563eb);
+}
+
+.media-integration-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.media-integration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dbe3ef;
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.media-integration-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.media-integration-badge.ready {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.media-integration-badge.degraded,
+.media-integration-badge.disabled {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.media-dropzone {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1.5px dashed #bfccdc;
+  border-radius: 18px;
+  padding: 24px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+  cursor: pointer;
+  text-align: center;
+}
+
+.media-dropzone:hover {
+  border-color: #2563eb;
+  background: #f3f7ff;
+}
+
+.media-dropzone > svg {
+  width: 48px;
+  height: 48px;
+  color: #2563eb;
+}
+
+.media-dropzone strong {
+  max-width: 100%;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-dropzone span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.media-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.media-upload-button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.media-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 11px 13px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.media-message.success {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.media-message.error {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.media-result {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.media-result img,
+.media-result video {
+  width: 76px;
+  height: 76px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.media-result div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.media-result strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-result span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.media-result button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: #fff;
+  font-weight: 700;
+}
+
+.media-product-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.media-product-card textarea {
+  min-height: 105px;
+  resize: vertical;
+}
+
+.media-empty {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+.media-empty svg {
+  width: 54px;
+  height: 54px;
+  color: #94a3b8;
+}
+
+.media-spin {
+  animation: media-spin .9s linear infinite;
+}
+
+@keyframes media-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1040px) {
+  .media-manager-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .media-result {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .media-result img,
+  .media-result video {
+    width: 64px;
+    height: 64px;
+  }
+
+  .media-result button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
