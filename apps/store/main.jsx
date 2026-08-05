@@ -4,10 +4,13 @@ import { StoreApp } from "../../src/store/StoreApp.jsx";
 import { initializeStorefrontConfig } from "../../src/store/runtime-config.js";
 import "../../src/store/store.css";
 
-await initializeStorefrontConfig();
+async function bootstrapStorefront() {
+  await initializeStorefrontConfig();
+  createRoot(document.getElementById("root")).render(
+    <React.StrictMode>
+      <StoreApp />
+    </React.StrictMode>,
+  );
+}
 
-createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <StoreApp />
-  </React.StrictMode>,
-);
+bootstrapStorefront();
