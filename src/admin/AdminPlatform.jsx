@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Database } from "@phosphor-icons/react";
 import { AdminPortal } from "./AdminPortal.jsx";
 import { CatalogOperations } from "./CatalogOperations.jsx";
+import "./ui/design-system.css";
 
 function CatalogNavigationBridge({ onNavigate }) {
   const [target, setTarget] = useState(null);
