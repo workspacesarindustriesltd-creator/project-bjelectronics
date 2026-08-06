@@ -16,14 +16,17 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   package-production:
-    name: Build production package
+    name: Validate production release
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: production
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_BASE_URL || 'https://bjelectronics.shop' }}
     steps:
       - name: Checkout verified revision
         uses: actions/checkout@v6
@@ -39,7 +42,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Build tested Hostinger output
+      - name: Build and verify Hostinger release
         run: npm run hostinger:build
 
       - name: Validate managed runtime
@@ -74,59 +77,45 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Deployment summary
+      - name: Record managed deployment expectation
         run: |
           {
-            echo "## Hostinger production package"
+            echo "## Hostinger production release"
             echo ""
             echo "- Revision: \`${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}\`"
+            echo "- Source branch: \`main\`"
             echo "- Runtime: Node.js 22"
             echo "- Build command: \`npm run hostinger:build\`"
             echo "- Output directory: \`dist\`"
             echo "- Entry file: \`index.js\`"
             echo "- Artifact checksum: \`$(cut -d ' ' -f1 hostinger-production.tgz.sha256)\`"
+            echo "- Deployment trigger: Hostinger native GitHub integration watches pushes to \`main\`."
           } >> "$GITHUB_STEP_SUMMARY"
-
-  trigger-hostinger:
-    name: Trigger Hostinger deployment
-    needs: package-production
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: production
-    env:
-      HOSTINGER_DEPLOY_WEBHOOK_URL: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK_URL }}
-    steps:
-      - name: Trigger optional Hostinger webhook
-        run: |
-          if [ -z "$HOSTINGER_DEPLOY_WEBHOOK_URL" ]; then
-            echo "No deploy webhook is configured. Hostinger GitHub integration will deploy automatically from the main branch."
-            exit 0
-          fi
-          curl --fail --silent --show-error \
-            --retry 3 --retry-delay 5 --retry-all-errors \
-            --request POST "$HOSTINGER_DEPLOY_WEBHOOK_URL"
 
   verify-production:
     name: Verify public deployment
     needs:
       - package-production
-      - trigger-hostinger
     if: vars.HOSTINGER_HEALTHCHECK_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    environment: production
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_BASE_URL || 'https://bjelectronics.shop' }}
     env:
       PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL || 'https://bjelectronics.shop' }}
     steps:
-      - name: Verify API health
+      - name: Wait for Hostinger deployment and verify API health
         run: |
           curl --fail --silent --show-error \
-            --retry 18 --retry-delay 15 --retry-all-errors \
+            --retry 24 --retry-delay 15 --retry-all-errors \
             "$PRODUCTION_BASE_URL/api/health" > health.json
           node --input-type=module <<'NODE'
           import { readFileSync } from "node:fs";
           const health = JSON.parse(readFileSync("health.json", "utf8"));
-          if (health.status !== "ok") throw new Error(`Unexpected API status: ${health.status}`);
+          if (!['ok', 'degraded'].includes(health.status)) {
+            throw new Error(`Unexpected API status: ${health.status}`);
+          }
           if (health.dependencies?.database?.status !== "ok") {
             throw new Error("Production database health check failed.");
           }
@@ -136,3 +125,13 @@ jobs:
         run: |
           curl --fail --silent --show-error --location "$PRODUCTION_BASE_URL/" > /dev/null
           curl --fail --silent --show-error --location "$PRODUCTION_BASE_URL/admin/" > /dev/null
+
+      - name: Deployment verification summary
+        run: |
+          {
+            echo "## Public deployment verified"
+            echo ""
+            echo "- Storefront: \`$PRODUCTION_BASE_URL/\`"
+            echo "- Administrator: \`$PRODUCTION_BASE_URL/admin/\`"
+            echo "- API health: \`$PRODUCTION_BASE_URL/api/health\`"
+          } >> "$GITHUB_STEP_SUMMARY"

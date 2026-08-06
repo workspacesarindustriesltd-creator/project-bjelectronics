@@ -1,8 +1,8 @@
 # Hostinger automatic deployment
 
-BJ Electronics is packaged as a managed Node.js application for Hostinger Business or Cloud hosting.
+BJ Electronics is configured as a managed Express.js and Vite Node.js application for Hostinger Business or Cloud hosting.
 
-## GitHub repository source
+## Production source
 
 - Repository: `workspacesarindustriesltd-creator/project-bjelectronics`
 - Production branch: `main`
@@ -13,88 +13,96 @@ BJ Electronics is packaged as a managed Node.js application for Hostinger Busine
 - Entry file: `index.js`
 - Start command: `npm start`
 
-Hostinger's GitHub integration should be connected to this repository and the `main` branch. Automatic deployment must be enabled so every successful merge to `main` starts a new Hostinger build.
+Hostinger's native GitHub integration must be connected to this repository and the `main` branch. Once connected, every push to the selected branch starts an automatic Hostinger build and deployment. Production changes should reach `main` only through a pull request whose `CI` checks pass.
 
-## Environment variables
-
-Copy the variable names from `deploy/hostinger-business.env.example` into the Hostinger Node.js application environment. Never commit production values to GitHub.
-
-Required production groups:
-
-- public application URLs
-- MySQL connection
-- JWT and administrator vault secrets
-- initial administrator credentials
-
-Optional live integrations:
-
-- Upstash Redis
-- Cloudinary
-- Google OAuth
-- GitHub OAuth
-
-Redis and Cloudinary may also be configured through the encrypted administrator Integration Hub after the application is running.
-
-## GitHub deployment workflow
-
-`.github/workflows/hostinger-deployment.yml` runs only after the normal `CI` workflow succeeds on `main`.
-
-It performs the following operations:
-
-1. Checks out the exact verified commit.
-2. Installs the locked dependency graph with Node.js 22.
-3. Runs the complete Hostinger production build, tests and dependency audit.
-4. Validates the generated Node.js entry files and runtime engine.
-5. Creates a checksum-protected deployment archive.
-6. Uploads the archive as a GitHub Actions artifact for 14 days.
-7. Optionally triggers a Hostinger auto-deployment webhook.
-8. Optionally verifies the public storefront, administrator shell and API health endpoint.
-
-## Optional GitHub configuration
-
-In GitHub repository settings, open **Settings → Secrets and variables → Actions**.
-
-### Secret
-
-`HOSTINGER_DEPLOY_WEBHOOK_URL`
-
-Add this only when the Hostinger application supplies an auto-deployment webhook. Keep it blank when the Node.js application is connected through Hostinger's native GitHub integration; Hostinger will already receive `main` pushes automatically.
-
-### Variables
-
-`HOSTINGER_HEALTHCHECK_ENABLED=true`
-
-`PRODUCTION_BASE_URL=https://bjelectronics.shop`
-
-Enable the health check only after DNS and the Hostinger application route are active. When enabled, the workflow requires:
-
-- `/api/health` to return JSON with `status: "ok"`
-- the database dependency to report `ok`
-- `/` to return a successful storefront response
-- `/admin/` to return a successful administrator response or login shell
-
-## hPanel connection checklist
+## One-time hPanel configuration
 
 1. Open **Websites → BJ Electronics → Dashboard**.
-2. Select **Connect to GitHub** or **Change repository**.
-3. Authorize the Hostinger GitHub application for the repository.
-4. Select `workspacesarindustriesltd-creator/project-bjelectronics`.
-5. Select the `main` branch.
+2. Select **Connect to GitHub**. If another repository is connected, use **Change repository**.
+3. Authorize the Hostinger GitHub application for `workspacesarindustriesltd-creator/project-bjelectronics`.
+4. Select the `main` branch.
+5. Choose framework type **Other** if Hostinger does not detect the combined Express.js and Vite application correctly.
 6. Set Node.js to `22.x`.
-7. Confirm the build command, output directory and entry file listed above.
-8. Add the production environment variables.
-9. Enable automatic deployment.
-10. Run one manual redeployment after changing environment variables or build settings.
+7. Set the install command to `npm ci`.
+8. Set the build command to `npm run hostinger:build`.
+9. Set the output directory to `dist`.
+10. Set the entry file to `index.js`.
+11. Set the start command to `npm start` when the field is available.
+12. Import the production environment variables in hPanel. Never commit production values to GitHub.
+13. Deploy once and confirm the application is connected to GitHub.
+
+After this connection exists, a merge or direct push to `main` automatically starts a new Hostinger deployment. No GitHub deployment webhook or SSH secret is required for Hostinger's native Node.js GitHub integration.
+
+## Production environment variables
+
+Copy the required variable names from `deploy/hostinger-business.env.example` into the Hostinger application environment and replace every placeholder in hPanel.
+
+Required production groups include:
+
+- public application and administrator URLs
+- Hostinger MySQL `DATABASE_URL`
+- session and audit secrets
+- administrator vault encryption key
+- initial administrator credentials used for the first seed only
+
+Never add `.env`, database credentials, passwords, API keys or vault keys to GitHub Actions secrets unless a workflow explicitly needs them. The native Hostinger integration reads production environment variables from hPanel, not from this repository.
+
+## GitHub release workflow
+
+`.github/workflows/hostinger-deployment.yml` runs after the `CI` workflow succeeds for `main`.
+
+It performs these operations:
+
+1. Checks out the exact revision verified by `CI`.
+2. Installs the locked dependency graph using Node.js 22.
+3. Runs the complete Hostinger production build, tests and dependency audit.
+4. Validates the generated runtime entry files and Node.js engine.
+5. Creates a checksum-protected `hostinger-production.tgz` artifact.
+6. Uploads the artifact to GitHub Actions for 14 days.
+7. Records that Hostinger's native GitHub integration is responsible for the actual deployment.
+8. Optionally waits for and verifies the public application after deployment.
+
+The GitHub artifact is a reproducible backup and audit record. Hostinger deploys from the connected repository branch rather than downloading this Actions artifact.
+
+## GitHub Actions configuration
+
+Open **Settings → Secrets and variables → Actions → Variables** and add:
+
+```text
+PRODUCTION_BASE_URL=https://bjelectronics.shop
+HOSTINGER_HEALTHCHECK_ENABLED=true
+```
+
+Set `HOSTINGER_HEALTHCHECK_ENABLED=true` only after the Hostinger application, DNS and MySQL connection are live. When enabled, the workflow verifies:
+
+- `/api/health` returns `ok` or `degraded`
+- the database dependency reports `ok`
+- `/` returns a successful storefront response
+- `/admin/` returns the administrator login or authenticated application shell
+
+No `HOSTINGER_DEPLOY_WEBHOOK_URL` secret is required for the native Node.js GitHub integration.
+
+## Branch protection
+
+Protect `main` in **Settings → Branches** or **Rulesets** with these minimum controls:
+
+- require a pull request before merging
+- require the `CI / verify` status check
+- require the branch to be up to date before merging
+- block force pushes
+- block branch deletion
+
+This prevents an unverified commit from becoming the production branch that Hostinger watches.
 
 ## Deployment acceptance checks
 
-A deployment is complete only when all of the following are true:
+A production release is complete only when all of the following are true:
 
-- GitHub `CI` succeeds on `main`.
-- GitHub `Hostinger Deployment` creates the production artifact.
-- Hostinger reports a successful build and running application.
-- `https://bjelectronics.shop/` is publicly reachable.
-- `https://bjelectronics.shop/api/health` reports a healthy database.
-- `https://bjelectronics.shop/admin/` loads the administrator login or authenticated dashboard.
+- the pull request checks pass
+- the change is merged into `main`
+- Hostinger reports a successful build and running Node.js application
+- `https://bjelectronics.shop/` is publicly reachable
+- `https://bjelectronics.shop/api/health` reports a healthy database
+- `https://bjelectronics.shop/admin/` loads the administrator interface
 
-An HTTP `403` response means the GitHub build may be valid but the Hostinger application, routing, permissions or domain connection is not yet publicly deployed.
+If GitHub succeeds but the public site does not update, verify that hPanel is connected to this exact repository and the `main` branch, then inspect the latest Hostinger deployment log. Environment-variable changes require a Hostinger redeployment.
