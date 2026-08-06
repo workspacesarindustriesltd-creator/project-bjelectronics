@@ -1,17 +1,9 @@
-name: CI
+name: Verify Hostinger install fix
 
 on:
   push:
     branches:
-      - main
       - fix/hostinger-vite-install
-  pull_request:
-    branches:
-      - main
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -23,22 +15,20 @@ jobs:
     env:
       CI: true
     steps:
-      - name: Checkout repository
+      - name: Checkout fix branch
         uses: actions/checkout@v6
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      - name: Install dependencies in Hostinger production mode
+      - name: Install in Hostinger production mode
         run: NODE_ENV=production npm ci
-      - name: Verify local Vite build dependency is available
+      - name: Verify local Vite binary
         run: test -x node_modules/.bin/vite && node_modules/.bin/vite --version
-      - name: Run tests and production build
+      - name: Run complete application check
         run: npm run check
-      - name: Re-verify frontend security boundaries
-        run: npm run verify:security-boundaries
-      - name: Validate Hostinger output package
+      - name: Validate generated Hostinger runtime
         run: |
           npm ci --ignore-scripts --omit=dev --prefix dist
           node --check dist/index.js
