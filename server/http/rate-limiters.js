@@ -29,13 +29,13 @@ export function createRateLimiters(overrides = {}) {
     global: createLimiter({
       windowMs,
       limit: overrides.limit ?? 900,
-      message: "Request limit reached. Please try again later.",
+      message: "Too many requests. Please try again later.",
     }),
     authentication: createLimiter({
       windowMs,
       limit: overrides.authLimit ?? 12,
       skipSuccessfulRequests: true,
-      message: "Too many authentication attempts. Wait before trying again.",
+      message: "Too many authentication attempts. Please try again later.",
     }),
     adminRead: createLimiter({
       windowMs,
