@@ -50,11 +50,18 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_email VARCHAR(120) NOT NULL,
   customer_phone VARCHAR(20) NOT NULL,
   shipping_address VARCHAR(255) NOT NULL,
+  courier VARCHAR(80) NULL,
+  tracking_number VARCHAR(120) NULL,
+  admin_notes TEXT NULL,
+  cancellation_reason VARCHAR(500) NULL,
+  shipped_at DATETIME NULL,
+  delivered_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id),
   INDEX idx_orders_user_created (user_id, created_at),
-  INDEX idx_orders_status (status, payment_status)
+  INDEX idx_orders_status (status, payment_status),
+  INDEX idx_orders_tracking (tracking_number)
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
