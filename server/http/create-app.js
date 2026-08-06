@@ -3,11 +3,11 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import { rateLimit as createRateLimit } from "express-rate-limit";
 import { requireAdminPage } from "../auth.js";
 import { config, isProduction } from "../config.js";
 import { csrfProtection, issueCsrfToken } from "./csrf.js";
 import { errorHandler, notFound } from "./error-handler.js";
+import { createRateLimiters, mutationOnly } from "./rate-limiters.js";
 import { createAccountRouter } from "../modules/account/routes.js";
 import { createAdminRouter } from "../modules/admin/routes.js";
 import { createAdminBootstrapRouter } from "../modules/admin/bootstrap.js";
@@ -126,25 +126,15 @@ export function createApp({
 }) {
   const app = express();
   const allowedOrigins = new Set([config.storeUrl, config.adminUrl]);
-  const requestLimiter = createRateLimit({
-    windowMs: rateLimit.windowMs ?? 15 * 60 * 1000,
-    limit: rateLimit.limit ?? 600,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    message: { error: "Too many requests. Please try again later." },
-  });
-  const authenticationLimiter = createRateLimit({
-    windowMs: rateLimit.windowMs ?? 15 * 60 * 1000,
-    limit: rateLimit.authLimit ?? 20,
-    standardHeaders: "draft-8",
-    legacyHeaders: false,
-    message: { error: "Too many authentication attempts. Please try again later." },
-  });
+  const limiters = createRateLimiters(rateLimit);
 
   app.disable("x-powered-by");
   if (isProduction) app.set("trust proxy", 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-  app.use(requestLimiter);
+  app.use((req, res, next) => {
+    if (requestPath(req) === "/api/health") return next();
+    return limiters.global(req, res, next);
+  });
   app.use(cors({
     credentials: true,
     origin(origin, callback) {
@@ -153,7 +143,7 @@ export function createApp({
     },
   }));
   app.use(express.json({ limit: "2mb" }));
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: false, limit: "2mb" }));
   app.use(cookieParser());
   app.use("/api", (_req, res, next) => {
     setPrivateResponseHeaders(res);
@@ -186,11 +176,11 @@ export function createApp({
     });
   });
 
-  app.use("/api/auth", authenticationLimiter, createCustomerAuthRouter(repository));
+  app.use("/api/auth", limiters.authentication, createCustomerAuthRouter(repository));
   if (adminControl) {
-    app.use("/api/admin/auth/oauth", authenticationLimiter, createAdminOAuthRouter(repository, adminControl));
+    app.use("/api/admin/auth/oauth", limiters.authentication, createAdminOAuthRouter(repository, adminControl));
   }
-  app.use("/api/admin/auth", authenticationLimiter, createAdminAuthRouter(repository, { adminControl }));
+  app.use("/api/admin/auth", limiters.authentication, createAdminAuthRouter(repository, { adminControl }));
   app.use("/api/products", createCatalogRouter(repository, {
     cache,
     catalogTtlSeconds: config.redis.catalogTtlSeconds,
@@ -201,10 +191,11 @@ export function createApp({
   app.use("/api/coupons", createCouponValidationRouter(repository));
   if (adminControl) {
     app.use("/api/storefront", createStorefrontConfigRouter(adminControl));
-    app.use("/api/admin/control", createAdminBootstrapRouter(adminControl));
-    app.use("/api/admin/control", createAdminControlRouter(adminControl, { cache, media }));
+    app.use("/api/admin/control", limiters.adminRead, mutationOnly(limiters.adminWrite), createAdminBootstrapRouter(adminControl));
+    app.use("/api/admin/control", limiters.adminRead, mutationOnly(limiters.adminWrite), createAdminControlRouter(adminControl, { cache, media }));
   }
-  app.use("/api/admin", createAdminRouter(repository, { cache, media, controlRepository: adminControl }));
+  app.use("/api/admin/media", limiters.uploads);
+  app.use("/api/admin", limiters.adminRead, mutationOnly(limiters.adminWrite), createAdminRouter(repository, { cache, media, controlRepository: adminControl }));
 
   if (staticRoot) mountStaticApplications(app, staticRoot);
 
