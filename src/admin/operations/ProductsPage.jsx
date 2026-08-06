@@ -103,6 +103,7 @@ function ProductEditor({ product, request, onSave, onClose }) {
     stock: String(product.stock ?? 0),
   } : EMPTY_PRODUCT);
   const [files, setFiles] = useState([]);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -117,10 +118,30 @@ function ProductEditor({ product, request, onSave, onClose }) {
     setError("");
   }, [product]);
 
+  useEffect(() => {
+    const file = files[0];
+    if (!file) {
+      setPreviewUrl("");
+      return undefined;
+    }
+    if (!file.type.startsWith("image/")) {
+      setFiles([]);
+      setError("Choose a supported image file.");
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [files]);
+
   const submit = async (event) => {
     event.preventDefault();
     if (!draft.image && files.length === 0) {
       setError("Add an image URL or upload an image from your device.");
+      return;
+    }
+    if (files[0] && !files[0].type.startsWith("image/")) {
+      setError("Choose a supported image file.");
       return;
     }
     setBusy(true);
@@ -147,6 +168,7 @@ function ProductEditor({ product, request, onSave, onClose }) {
   };
 
   const update = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
+  const preview = previewUrl || draft.image;
 
   return (
     <form className="ops2-form" onSubmit={submit}>
@@ -159,7 +181,7 @@ function ProductEditor({ product, request, onSave, onClose }) {
           <Field label="Category" required><input required value={draft.category} onChange={(event) => update("category", event.target.value)} /></Field>
           <Field label="Subcategory"><input value={draft.subcategory || ""} onChange={(event) => update("subcategory", event.target.value)} /></Field>
           <Field label="Brand"><input value={draft.brand || ""} onChange={(event) => update("brand", event.target.value)} /></Field>
-          <Field label="Availability"><Select value={draft.availability} onChange={(event) => update("availability", event.target.value)}><option value="in_stock">In stock</option><option value="preorder">Preorder</option><option value="out_of_stock">Out of stock</option></Select></Field>
+          <Field label="Availability"><Select value={draft.availability} onChange={(event) => update("availability", event.target.value)}><option value="in_stock">In stock</option><option value="preorder">Preorder</option></Select></Field>
           <Field label="Price (BDT)" required><input required type="number" min="1" value={draft.price} onChange={(event) => update("price", event.target.value)} /></Field>
           <Field label="Previous price"><input type="number" min="1" value={draft.oldPrice || ""} onChange={(event) => update("oldPrice", event.target.value)} /></Field>
           <Field label="Stock" required><input required type="number" min="0" value={draft.stock} onChange={(event) => update("stock", event.target.value)} /></Field>
@@ -170,7 +192,7 @@ function ProductEditor({ product, request, onSave, onClose }) {
       <section className="ops2-form-section">
         <header><div><span>Product media</span><h3>Image and attachment</h3></div></header>
         <div className="ops2-media-editor">
-          <div className="ops2-image-preview">{(files[0] || draft.image) ? <img src={files[0] ? URL.createObjectURL(files[0]) : draft.image} alt="Product preview" /> : <ImageSquare weight="duotone" />}</div>
+          <div className="ops2-image-preview">{preview ? <img src={preview} alt="Product preview" /> : <ImageSquare weight="duotone" />}</div>
           <div>
             <FileDropzone accept="image/*" maxSizeMb={10} value={files} onChange={setFiles} label="Upload product image" />
             <Field label="Or use image URL"><input type="url" value={draft.image || ""} onChange={(event) => update("image", event.target.value)} placeholder="https://..." /></Field>
