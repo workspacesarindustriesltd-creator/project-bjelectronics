@@ -81,6 +81,10 @@ All data comes from protected administrator APIs. Product and order mutations co
 
 No production credential is added to the browser bundle or repository.
 
+## Production validation gate
+
+The merged Phase 2 source is validated from `main` using the repository CI workflow. The gate runs source-quality checks, storefront and administrator builds, automated API and UI-source tests, frontend credential-boundary checks, Hostinger runtime validation and the production dependency audit.
+
 ## Next migration phase
 
 The remaining legacy surfaces can be moved into modular pages in this order:
