@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowClockwise,
   Bell,
+  ChartBar,
   Cube,
   Database,
   Gear,
@@ -20,14 +21,16 @@ import {
 } from "@phosphor-icons/react";
 import { Avatar, Button, IconButton, ToastRegion } from "../ui/index.jsx";
 import { apiRequest, readStorage, writeStorage } from "../../shared/client.js";
+import { OperationsCenter } from "../OperationsCenter.jsx";
 import { CustomersPage } from "./CustomersPage.jsx";
 import { InlineNotice, LoadingPanel } from "./components.jsx";
 import { OrdersPage } from "./OrdersPage.jsx";
 import { ProductsPage } from "./ProductsPage.jsx";
 import "./operations.css";
 
-const OPERATION_SECTIONS = new Set(["orders", "products", "inventory", "customers"]);
+const OPERATION_SECTIONS = new Set(["operations", "orders", "products", "inventory", "customers"]);
 const PRIMARY_NAV = [
+  ["/admin/operations", ChartBar, "Operations center"],
   ["/admin/dashboard", SquaresFour, "Overview"],
   ["/admin/orders", Package, "Orders"],
   ["/admin/products", ShoppingCart, "Products"],
@@ -47,7 +50,7 @@ export function isOperationsPath(pathname = window.location.pathname) {
 
 function currentSection(pathname) {
   const section = pathname.split("/")[2];
-  return OPERATION_SECTIONS.has(section) ? section : "orders";
+  return OPERATION_SECTIONS.has(section) ? section : "operations";
 }
 
 function dispatchNavigation(path) {
@@ -70,7 +73,7 @@ function Sidebar({ section, open, setOpen, user, onNavigate, onLogout }) {
 }
 
 function Topbar({ section, user, theme, setTheme, onMenu, onNavigate, onRefresh, refreshing }) {
-  const titles = { orders: "Order operations", products: "Product catalog", inventory: "Inventory control", customers: "Customer management" };
+  const titles = { operations: "Operations command center", orders: "Order operations", products: "Product catalog", inventory: "Inventory control", customers: "Customer management" };
   return (
     <header className="ops2-topbar">
       <IconButton label="Open navigation" className="ops2-menu-button" onClick={onMenu}><List /></IconButton>
@@ -168,10 +171,11 @@ export function OperationsConsole({ path, onNavigate }) {
   };
 
   const content = useMemo(() => {
+    if (section === "operations") return <OperationsCenter onNavigate={onNavigate} />;
     if (section === "orders") return <OrdersPage orders={orders} onUpdateStatus={updateOrderStatus} />;
     if (section === "customers") return <CustomersPage customers={customers} />;
     return <ProductsPage products={products} onSaveProduct={saveProduct} request={apiRequest} inventoryOnly={section === "inventory"} />;
-  }, [customers, orders, products, saveProduct, section, updateOrderStatus]);
+  }, [customers, onNavigate, orders, products, saveProduct, section, updateOrderStatus]);
 
   return (
     <div className="ops2-app">
