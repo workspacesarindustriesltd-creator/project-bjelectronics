@@ -25,6 +25,10 @@ test("administrator operations routes use the modular console", async () => {
     assert.match(consoleSource, new RegExp(`admin/${route}`));
   }
   assert.match(platform, /admin:navigation/);
+  assert.match(platform, /window\.history\.pushState = function pushState/);
+  assert.match(platform, /window\.history\.replaceState = function replaceState/);
+  assert.match(platform, /window\.history\.pushState = originalPushState/);
+  assert.match(platform, /window\.history\.replaceState = originalReplaceState/);
 });
 
 test("operations pages expose reusable table, filter and detail workflows", async () => {
