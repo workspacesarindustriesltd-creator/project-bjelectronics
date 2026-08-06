@@ -69,7 +69,10 @@ const runtimePackage = {
 
 writeFileSync(path.join(dist, "package.json"), `${JSON.stringify(runtimePackage, null, 2)}\n`);
 cpSync(packageLock, path.join(dist, "package-lock.json"));
-writeFileSync(path.join(dist, "index.js"), 'import "./runtime/server/index.js";\n');
+writeFileSync(
+  path.join(dist, "index.js"),
+  'void import("./runtime/server/index.js").catch((error) => {\n  console.error("Failed to start the BJ Electronics server.", error);\n  process.exitCode = 1;\n});\n',
+);
 writeFileSync(path.join(dist, ".nvmrc"), "20\n");
 
 console.log(
