@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main
-      - fix/hostinger-vite-install
+      - "feature/**"
+      - "fix/**"
+      - "refactor/**"
   pull_request:
     branches:
       - main
